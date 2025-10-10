@@ -1,6 +1,3 @@
-smaport-ia/
-│
-├── app.py
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -76,20 +73,3 @@ if archivo:
             file_name="informe_smaport.txt",
             mime="text/plain"
         )
-├── requirements.txt
-streamlit
-pandas
-matplotlib
-openai
-├── README.md
-# 📊 Smaport IA
-
-**Smaport IA** es un analista de negocio inteligente que genera informes automáticos a partir de tus datos (ventas, gastos, inventario, etc.) usando Inteligencia Artificial.
-
-## 🚀 Cómo usarlo
-
-1. Clona o descarga este repositorio.  
-2. Instala dependencias:  
-   ```bash
-   pip install -r requirements.txt
-└── sample_data.csv
