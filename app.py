@@ -13,19 +13,29 @@ api_key = st.sidebar.text_input("🔑 Ingresa tu API Key de OpenAI", type="passw
 # Subida de archivo
 st.write("Sube tu archivo CSV o Excel con datos de ventas, gastos o inventario.")
 archivo = st.file_uploader("Selecciona un archivo", type=["csv", "xlsx"])
+
 if archivo:
-    # Cargar datos
-    if archivo.name.endswith(".csv"):
-        df = pd.read_csv(archivo)
-    else:
-        df = pd.read_excel(archivo)
+    try:
+        # Cargar datos con soporte para Excel moderno
+        if archivo.name.endswith(".csv"):
+            df = pd.read_csv(archivo)
+        else:
+            df = pd.read_excel(archivo, engine="openpyxl")
 
-    st.subheader("📄 Vista previa de los datos")
-    st.dataframe(df.head())
+        # 🔧 Correcciones para evitar errores en Streamlit
+        df = df.fillna("")       # Reemplaza valores vacíos o NaN
+        df = df.astype(str)      # Convierte todo a texto compatible con JSON
+        df = df.dropna(how="all")  # Elimina filas totalmente vacías
 
-    # Análisis básico
-    st.subheader("📈 Resumen estadístico")
-    st.dataframe(df.describe())
+        st.subheader("📄 Vista previa de los datos")
+        st.dataframe(df.head())
+
+        # Análisis básico
+        st.subheader("📈 Resumen estadístico")
+        st.dataframe(df.describe(include='all'))
+
+    except Exception as e:
+        st.error(f"❌ Error al cargar el archivo: {e}")
 
     # Gráfico automático
     if "Fecha" in df.columns and "Ingresos" in df.columns:
