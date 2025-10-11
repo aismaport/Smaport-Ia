@@ -36,7 +36,8 @@ if archivo:
         df = df.replace([float("inf"), float("-inf")], pd.NA)
         df = df.dropna(how="all", axis=1)  # elimina columnas completamente vacías
         df = df.dropna(how="all", axis=0)  # elimina filas vacías
-        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]  # elimina columnas sin nombre
+        df.columns = df.columns.map(str)  # Convierte todos los nombres de columnas a texto
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed', na=False)]
 
         # ==============================
         # 👀 VISTA PREVIA
