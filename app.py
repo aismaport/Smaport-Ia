@@ -74,12 +74,12 @@ archivo = st.file_uploader("Selecciona un archivo", type=["csv", "xlsx"])
 
 if archivo:
     try:
-        # Cargar datos según el tipo de archivo
+        # Cargar datos según el tipo de archivo, usando el parámetro skiprows
         if archivo.name.endswith(".csv"):
-            df = pd.read_csv(archivo)
+            # Añado encoding='latin1' y sep=',' para mayor compatibilidad con CSV de Excel.
+            df = pd.read_csv(archivo, skiprows=skip_rows_count, encoding='latin1', sep=',')
         else:
-            df = pd.read_excel(archivo, engine="openpyxl")
-
+            df = pd.read_excel(archivo, engine="openpyxl", skiprows=skip_rows_count)
         # ==============================
         # 🔧 LIMPIEZA DE DATOS
         # ==============================
