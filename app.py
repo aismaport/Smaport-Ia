@@ -66,38 +66,73 @@ if archivo:
         product_col = find_column(df.columns, ["Producto", "Product", "Concepto", "Item", "Descripción"])
         units_col = find_column(df.columns, ["Unidades vendidas", "Unidades", "Cantidad", "Qty"])
 
-        # ==============================
-        # 📊 RESUMEN EJECUTIVO DE NEGOCIO (INTELIGENTE)
-        # ==============================
-        st.subheader("📊 Resumen ejecutivo del negocio")
+# ==============================
+# 📊 RESUMEN EJECUTIVO DE NEGOCIO (INTELIGENTE)
+# ==============================
+st.subheader("📊 Resumen ejecutivo del negocio")
 
+# 💡 FUNCIÓN DE FORMATO PARA VALORES FINANCIEROS Y GENERALES
+def format_value(value, currency=False):
+    """
+    Formatea un valor a cadena.
+    - Si es monetario (currency=True): muestra 2 decimales si no es entero (ej: 1200.55),
+      o sin decimales si es entero (ej: 1200).
+    - Si no es monetario (currency=False): intenta mostrarlo como entero si es posible.
+    """
+    if pd.isna(value) or value is None:
+        return "N/A"
+
+    # Redondeamos a 2 decimales para la lógica monetaria
+    val_rounded = round(value, 2)
+    
+    if currency:
+        # Si el valor redondeado es igual a su versión entera (ej: 1200.0 == 1200)
+        if val_rounded == round(val_rounded):
+            # Formato de entero sin decimales (ej: 1,200)
+            return f"{int(val_rounded):,}".replace(",", " ")
+        else:
+            # Formato con 2 decimales (ej: 1,200.55)
+            return f"{val_rounded:,.2f}".replace(",", " ")
+    else:
+        # Lógica para indicadores generales (registros, unidades, etc.)
         try:
-            resumen = {"Total de registros": len(df)}
+            # Intentamos convertir a entero si está muy cerca de serlo
+            return f"{int(round(value)):,}".replace(",", " ")
+        except (ValueError, TypeError):
+            # Si no se puede convertir a entero, lo dejamos tal cual o con 2 decimales
+            return f"{val_rounded:,.2f}".replace(",", " ")
 
-            if date_col:
-                df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
-                resumen["Periodo analizado"] = f"{df[date_col].min().date()} → {df[date_col].max().date()}"
+try:
+    resumen = {"Total de registros": format_value(len(df), currency=False)}
 
-            if product_col:
-                resumen[f"{product_col.capitalize()}s únicos"] = df[product_col].nunique()
+    if date_col:
+        df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+        resumen["Periodo analizado"] = f"{df[date_col].min().date()} → {df[date_col].max().date()}"
 
-            # --- Indicadores financieros ---
-            ingresos = pd.to_numeric(df[revenue_col], errors="coerce").sum() if revenue_col else 0
-            coste = pd.to_numeric(df[cost_col], errors="coerce").sum() if cost_col else 0
-            
-            beneficio = ingresos - coste
-            margen = (beneficio / ingresos * 100) if ingresos > 0 else 0
+    if product_col:
+        resumen[f"{product_col.capitalize()}s únicos"] = format_value(df[product_col].nunique(), currency=False)
 
-            resumen["💰 Ingresos totales (€)"] = round(ingresos, 2)
-            resumen["📉 Coste/Gasto total (€)"] = round(coste, 2)
-            resumen["🧮 Beneficio total (€)"] = round(beneficio, 2)
-            resumen["📊 Margen medio (%)"] = round(margen, 2)
+    # --- Indicadores financieros ---
+    ingresos = pd.to_numeric(df[revenue_col], errors="coerce").sum() if revenue_col else 0
+    coste = pd.to_numeric(df[cost_col], errors="coerce").sum() if cost_col else 0
+    
+    beneficio = ingresos - coste
+    margen = (beneficio / ingresos * 100) if ingresos > 0 else 0
 
-            if units_col:
-                unidades = pd.to_numeric(df[units_col], errors="coerce").sum()
-                resumen["📦 Total unidades vendidas"] = int(unidades)
+    # Usamos format_value con currency=True para los valores monetarios
+    resumen["💰 Ingresos totales (€)"] = format_value(ingresos, currency=True)
+    resumen["📉 Coste/Gasto total (€)"] = format_value(coste, currency=True)
+    resumen["🧮 Beneficio total (€)"] = format_value(beneficio, currency=True)
+    
+    # El margen lo dejamos con 2 decimales fijos (es un porcentaje)
+    resumen["📊 Margen medio (%)"] = f"{round(margen, 2):.2f}"
 
-            st.table(pd.DataFrame(resumen.items(), columns=["Indicador", "Valor"]))
+    if units_col:
+        unidades = pd.to_numeric(df[units_col], errors="coerce").sum()
+        # Usamos format_value con currency=False para las unidades (queremos un entero)
+        resumen["📦 Total unidades vendidas"] = format_value(unidades, currency=False)
+
+    st.table(pd.DataFrame(resumen.items(), columns=["Indicador", "Valor"]))
 
             # ==============================
             # 🏆 TOP PRODUCTOS
