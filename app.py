@@ -85,7 +85,7 @@ if archivo:
         # 👀 VISTA PREVIA
         # ==============================
         st.subheader("📄 Vista previa de los datos")
-        st.dataframe(df.head(50))
+        st.dataframe(df)
 
         # ==============================
         # 🔎 DETECCIÓN DINÁMICA DE COLUMNAS
