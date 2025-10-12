@@ -17,6 +17,14 @@ st.title("📊 Smaport IA — Analista de Negocio Inteligente")
 st.sidebar.header("Configuración")
 api_key = st.sidebar.text_input("🔑 Ingresa tu API Key de OpenAI", type="password")
 
+# Nuevo control para saltar filas (metadata)
+skip_rows_count = st.sidebar.number_input(
+    "🔢 Número de filas a saltar (Metadata/Header Junk)",
+    min_value=0,
+    value=0, # Valor por defecto. Para tu archivo, intenta con 9.
+    step=1,
+)
+
 # ==============================
 #  HELPER FUNCTIONS
 # ==============================
