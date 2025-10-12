@@ -18,6 +18,17 @@ st.sidebar.header("Configuración")
 api_key = st.sidebar.text_input("🔑 Ingresa tu API Key de OpenAI", type="password")
 
 # ==============================
+#  HELPER FUNCTION
+# ==============================
+def find_column(df_columns, potential_names):
+    """Busca una columna en el dataframe ignorando mayúsculas/minúsculas."""
+    for name in potential_names:
+        for col in df_columns:
+            if name.lower() == col.lower():
+                return col
+    return None
+
+# ==============================
 # 📤 SUBIDA DE ARCHIVO
 # ==============================
 st.write("Sube tu archivo CSV o Excel con datos de ventas, gastos o inventario.")
@@ -35,16 +46,25 @@ if archivo:
         # 🔧 LIMPIEZA DE DATOS
         # ==============================
         df = df.replace([float("inf"), float("-inf")], pd.NA)
-        df = df.dropna(how="all", axis=1)  # elimina columnas completamente vacías
-        df = df.dropna(how="all", axis=0)  # elimina filas vacías
-        df.columns = df.columns.map(str)  # Convierte todos los nombres de columnas a texto
+        df = df.dropna(how="all", axis=1)
+        df = df.dropna(how="all", axis=0)
+        df.columns = df.columns.map(str)
         df = df.loc[:, ~df.columns.str.contains('^Unnamed', na=False)]
 
         # ==============================
         # 👀 VISTA PREVIA
         # ==============================
         st.subheader("📄 Vista previa de los datos")
-        st.dataframe(df.head(50))  # Solo muestra las primeras filas
+        st.dataframe(df.head(50))
+
+        # ==============================
+        # 🔎 DETECCIÓN DINÁMICA DE COLUMNAS
+        # ==============================
+        date_col = find_column(df.columns, ["Fecha", "Date", "Día"])
+        revenue_col = find_column(df.columns, ["Ingresos", "Ventas", "Revenue", "Ingreso", "Facturado"])
+        cost_col = find_column(df.columns, ["Coste", "Costes", "Gastos", "Costo"])
+        product_col = find_column(df.columns, ["Producto", "Product", "Concepto", "Item", "Descripción"])
+        units_col = find_column(df.columns, ["Unidades vendidas", "Unidades", "Cantidad", "Qty"])
 
         # ==============================
         # 📊 RESUMEN EJECUTIVO DE NEGOCIO (INTELIGENTE)
@@ -52,52 +72,40 @@ if archivo:
         st.subheader("📊 Resumen ejecutivo del negocio")
 
         try:
-            resumen = {}
+            resumen = {"Total de registros": len(df)}
 
-            # --- Información general ---
-            resumen["Total de registros"] = len(df)
+            if date_col:
+                df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+                resumen["Periodo analizado"] = f"{df[date_col].min().date()} → {df[date_col].max().date()}"
 
-            if "Fecha" in df.columns:
-                df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
-                resumen["Periodo analizado"] = f"{df['Fecha'].min().date()} → {df['Fecha'].max().date()}"
-
-            if "Producto" in df.columns:
-                resumen["Productos únicos"] = df["Producto"].nunique()
+            if product_col:
+                resumen[f"{product_col.capitalize()}s únicos"] = df[product_col].nunique()
 
             # --- Indicadores financieros ---
-            # FIX: Comprobar si las columnas existen antes de intentar usarlas.
-            if "Ingresos" in df.columns:
-                ingresos = pd.to_numeric(df["Ingresos"], errors="coerce").sum()
-            else:
-                ingresos = 0
-
-            if "Coste" in df.columns:
-                coste = pd.to_numeric(df["Coste"], errors="coerce").sum()
-            else:
-                coste = 0
-
+            ingresos = pd.to_numeric(df[revenue_col], errors="coerce").sum() if revenue_col else 0
+            coste = pd.to_numeric(df[cost_col], errors="coerce").sum() if cost_col else 0
+            
             beneficio = ingresos - coste
             margen = (beneficio / ingresos * 100) if ingresos > 0 else 0
 
             resumen["💰 Ingresos totales (€)"] = round(ingresos, 2)
-            resumen["📉 Coste total (€)"] = round(coste, 2)
+            resumen["📉 Coste/Gasto total (€)"] = round(coste, 2)
             resumen["🧮 Beneficio total (€)"] = round(beneficio, 2)
             resumen["📊 Margen medio (%)"] = round(margen, 2)
 
-            if "Unidades vendidas" in df.columns:
-                unidades = pd.to_numeric(df["Unidades vendidas"], errors="coerce").sum()
+            if units_col:
+                unidades = pd.to_numeric(df[units_col], errors="coerce").sum()
                 resumen["📦 Total unidades vendidas"] = int(unidades)
 
-            # Mostrar indicadores en formato tabla
             st.table(pd.DataFrame(resumen.items(), columns=["Indicador", "Valor"]))
 
             # ==============================
             # 🏆 TOP PRODUCTOS
             # ==============================
-            if {"Producto", "Ingresos"} <= set(df.columns):
-                st.subheader("🏆 Top productos más rentables")
+            if product_col and revenue_col:
+                st.subheader(f"🏆 Top {product_col.capitalize()}s más rentables")
                 top_prod = (
-                    df.groupby("Producto")["Ingresos"]
+                    df.groupby(product_col)[revenue_col]
                     .sum()
                     .sort_values(ascending=False)
                     .head(5)
@@ -107,31 +115,30 @@ if archivo:
             # ==============================
             # 📅 ANÁLISIS TEMPORAL
             # ==============================
-            if "Fecha" in df.columns and "Ingresos" in df.columns:
-                st.subheader("⏳ Tendencia de ingresos")
+            if date_col and revenue_col:
+                st.subheader(f"⏳ Tendencia de {revenue_col.lower()}")
                 df_temp = df.copy()
-                df_temp["Fecha"] = pd.to_datetime(df_temp["Fecha"], errors="coerce")
-                df_temp = df_temp.dropna(subset=["Fecha"])
-                # FIX: Asegurarse de que el índice es correcto para el gráfico de líneas
-                df_temp_grouped = df_temp.groupby(df_temp['Fecha'].dt.to_period('D'))['Ingresos'].sum()
+                df_temp[date_col] = pd.to_datetime(df_temp[date_col], errors="coerce")
+                df_temp = df_temp.dropna(subset=[date_col, revenue_col])
+                df_temp_grouped = df_temp.set_index(date_col).resample('D')[revenue_col].sum()
                 st.line_chart(df_temp_grouped)
-
 
             # ==============================
             # ⚠️ DETECCIÓN DE ANOMALÍAS
             # ==============================
-            if "Ingresos" in df.columns:
-                ingresos_num = pd.to_numeric(df["Ingresos"], errors="coerce").dropna()
-                if not ingresos_num.empty:
-                    mean = ingresos_num.mean()
-                    std = ingresos_num.std()
+            col_anomalias = revenue_col if revenue_col else cost_col
+            if col_anomalias:
+                datos_num = pd.to_numeric(df[col_anomalias], errors="coerce").dropna()
+                if not datos_num.empty and len(datos_num) > 1:
+                    mean = datos_num.mean()
+                    std = datos_num.std()
                     umbral_superior = mean + 2 * std
                     umbral_inferior = mean - 2 * std
-                    outliers = df[(ingresos_num > umbral_superior) | (ingresos_num < umbral_inferior)]
+                    outliers = df[(datos_num > umbral_superior) | (datos_num < umbral_inferior)]
 
                     if not outliers.empty:
-                        st.subheader("⚠️ Posibles anomalías detectadas en ingresos")
-                        columnas_a_mostrar = [col for col in ["Fecha", "Producto", "Ingresos"] if col in df.columns]
+                        st.subheader(f"⚠️ Posibles anomalías detectadas en {col_anomalias.lower()}")
+                        columnas_a_mostrar = [c for c in [date_col, product_col, col_anomalias] if c]
                         st.dataframe(outliers[columnas_a_mostrar])
 
         except Exception as e:
@@ -144,30 +151,24 @@ if archivo:
         if api_key and st.button("🤖 Generar análisis con IA"):
             try:
                 client = OpenAI(api_key=api_key)
-
                 resumen_datos = df.head(50).to_string()
                 prompt = f"""
                 Analiza los siguientes datos de negocio y genera un resumen ejecutivo profesional:
                 - Describe las principales tendencias.
-                - Identifica los productos o periodos más rentables.
-                - Sugiere 3 recomendaciones para mejorar las ventas.
+                - Identifica los productos, conceptos o periodos más rentables.
+                - Sugiere 3 recomendaciones clave para mejorar el negocio.
 
                 Datos:
                 {resumen_datos}
                 """
-
                 with st.spinner("Generando informe con IA..."):
-                    # NOTA: "gpt-5" no es un modelo válido actualmente. Se usará gpt-3.5-turbo.
                     respuesta = client.chat.completions.create(
                         model="gpt-3.5-turbo",
                         messages=[{"role": "user", "content": prompt}]
                     )
                     analisis = respuesta.choices[0].message.content
-
                 st.subheader("🧾 Informe de IA")
                 st.markdown(analisis)
-
-                # Descargar informe
                 buffer = io.BytesIO(analisis.encode("utf-8"))
                 st.download_button(
                     label="📥 Descargar informe (TXT)",
@@ -177,7 +178,5 @@ if archivo:
                 )
             except Exception as e:
                 st.error(f"❌ Error al conectar con la API de OpenAI: {e}")
-
-
     except Exception as e:
         st.error(f"❌ Error al cargar o procesar el archivo: {e}")
