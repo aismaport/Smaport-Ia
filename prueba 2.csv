@@ -1,4 +1,4 @@
-Fecha,ID Transacción,Producto / Servicio,Unidades Vendidas,Ingresos (€),Coste (€),Método de Pago,Ciudad
+Fecha,ID Transacción,Producto,Unidades Vendidas,Ingresos,Coste,Método de Pago,Ciudad
 2025-10-01,T001,Licencia Básico,1,150,00€,10,50€,Tarjeta,Madrid
 2025-10-01,T002,Servicio Premium,3,45,00€,15,00€,Efectivo,Barcelona
 2025-10-01,T003,Licencia Básico,2,300,00€,21,00€,Transferencia,Valencia
