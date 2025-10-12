@@ -100,7 +100,19 @@ if archivo:
             st.error(f"⚠️ No se pudo generar el resumen estadístico: {e}")
             # Mostrar info adicional para depurar
             st.exception(e)
-
+        
+        # Gráfico automático
+        if "Fecha" in df.columns and "Ingresos" in df.columns:
+        st.subheader("📊 Evolución de ingresos")
+        df["Fecha"] = pd.to_datetime(df["Fecha"])
+        df.sort_values("Fecha", inplace=True)
+        fig, ax = plt.subplots()
+        ax.plot(df["Fecha"], df["Ingresos"], marker="o")
+        ax.set_title("Ingresos por fecha")
+        ax.set_xlabel("Fecha")
+        ax.set_ylabel("Ingresos (€)")
+        st.pyplot(fig)
+            
         # ==============================
         # 🤖 ANÁLISIS CON IA
         # ==============================
