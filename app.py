@@ -17,14 +17,6 @@ st.title("📊 Smaport IA — Analista de Negocio Inteligente")
 st.sidebar.header("Configuración")
 api_key = st.sidebar.text_input("🔑 Ingresa tu API Key de OpenAI", type="password")
 
-# Nuevo control para saltar filas (metadata)
-skip_rows_count = st.sidebar.number_input(
-    "🔢 Número de filas a saltar (Metadata/Header Junk)",
-    min_value=0,
-    value=0, # Valor por defecto. Para tu archivo, intenta con 9.
-    step=1,
-)
-
 # ==============================
 #  HELPER FUNCTIONS
 # ==============================
@@ -35,6 +27,40 @@ def find_column(df_columns, potential_names):
             if name.lower() == col.lower():
                 return col
     return None
+
+def detect_header_row(file_path):
+    """
+    Intenta detectar la fila de encabezado real analizando las primeras filas.
+    Devuelve el número de filas a saltar (skiprows).
+    """
+    try:
+        # Cargamos las primeras 20 filas sin encabezado
+        temp_df = pd.read_csv(file_path, header=None, nrows=20, encoding='latin1', sep=',', on_bad_lines='skip')
+    except Exception:
+        # Intentar con punto y coma si falla la coma
+        try:
+            temp_df = pd.read_csv(file_path, header=None, nrows=20, encoding='latin1', sep=';', on_bad_lines='skip')
+        except Exception:
+            # Si ambos fallan, devolvemos 0 (comportamiento por defecto)
+            return 0
+    
+    best_row_index = 0
+    max_text_cols = 0
+    
+    # Iteramos sobre las filas
+    for i in range(len(temp_df)):
+        # Contamos cuántas columnas en esta fila contienen texto (no son NaN)
+        # y no están vacías (con un pequeño umbral de longitud)
+        text_cols = temp_df.iloc[i].astype(str).str.strip().apply(lambda x: len(x) > 1).sum()
+        
+        # Si esta fila tiene más columnas de texto que la mejor encontrada hasta ahora, la seleccionamos.
+        if text_cols > max_text_cols:
+            max_text_cols = text_cols
+            best_row_index = i
+            
+    # El número de filas a saltar es el índice de la fila real del encabezado.
+    # Si detecta el encabezado en la fila 0, devuelve 0. Si lo detecta en la fila 9, devuelve 9.
+    return best_row_index
 
 def format_value(value, currency=False):
     """
@@ -73,13 +99,30 @@ st.write("Sube tu archivo CSV o Excel con datos de ventas, gastos o inventario."
 archivo = st.file_uploader("Selecciona un archivo", type=["csv", "xlsx"])
 
 if archivo:
+    # 1. Detección automática de la cabecera (solo para CSV/Texto)
+    skip_rows_count = 0
+    if archivo.name.endswith(".csv"):
+        # Para usar detect_header_row, necesitamos guardar el archivo temporalmente
+        # o manipular el stream (usaremos el stream para Streamlit)
+        try:
+            # Volver al inicio del stream para la detección de la cabecera
+            archivo.seek(0)
+            skip_rows_count = detect_header_row(archivo)
+            archivo.seek(0) # Volver a poner el puntero al inicio para la lectura final
+            st.info(f"✅ Cabecera detectada en la fila {skip_rows_count + 1}. Se saltarán {skip_rows_count} filas.")
+        except Exception as e:
+             st.warning(f"⚠️ No se pudo detectar la cabecera automáticamente, se usará el valor por defecto (0). Error: {e}")
+
     try:
-        # Cargar datos según el tipo de archivo, usando el parámetro skiprows
+        # 2. Cargar datos usando el parámetro skiprows detectado
         if archivo.name.endswith(".csv"):
-            # Añado encoding='latin1' y sep=',' para mayor compatibilidad con CSV de Excel.
-            df = pd.read_csv(archivo, skiprows=skip_rows_count, encoding='latin1', sep=',')
+            # Usar 'sep' como None para que Pandas intente detectar el delimitador (coma o punto y coma)
+            df = pd.read_csv(archivo, skiprows=skip_rows_count, encoding='latin1', sep=None, engine='python')
         else:
-            df = pd.read_excel(archivo, engine="openpyxl", skiprows=skip_rows_count)
+            # Para Excel, la detección de skiprows suele ser más sencilla
+            df = pd.read_excel(archivo, engine="openpyxl", skiprows=skip_rows_count, header=skip_rows_count)
+
+
         # ==============================
         # 🔧 LIMPIEZA DE DATOS
         # ==============================
@@ -195,7 +238,8 @@ if archivo:
         if api_key and st.button("🤖 Generar análisis con IA"):
             try:
                 client = OpenAI(api_key=api_key)
-                resumen_datos = df.head(50).to_string()
+                # Ojo: Mantenemos head(50) aquí para no sobrecargar el prompt de la IA con archivos gigantes
+                resumen_datos = df.head(50).to_string() 
                 prompt = f"""
                 Analiza los siguientes datos de negocio y genera un resumen ejecutivo profesional:
                 - Describe las principales tendencias.
