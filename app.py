@@ -50,11 +50,10 @@ if archivo:
         # 📊 RESUMEN ESTADÍSTICO (MEJORADO Y ROBUSTO)
         # ==============================
         st.subheader("📊 Resumen estadístico")
-
-try:
-    # Garantizar que df existe y es DataFrame
-    if not isinstance(df, pd.DataFrame):
-        df = pd.DataFrame(df)
+    try:
+        # Garantizar que df existe y es DataFrame
+        if not isinstance(df, pd.DataFrame):
+            df = pd.DataFrame(df)
 
     # Crear copia de trabajo
     df_clean = df.copy()
