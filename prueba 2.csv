@@ -8,7 +8,7 @@ Fecha,ID Transacción,Producto,Unidades Vendidas,Ingresos,Coste,Método de Pago,
 2025-10-03,T007,Licencia Básico,4,600.00€,42.00€,Transferencia,Madrid
 2025-10-03,T008,Licencia Avanzada,2,320.00€,48.00€,Tarjeta,Valencia
 2025-10-03,T009,Servicio Premium,1,15.00€,5.00€,Efectivo,Sevilla
-2025-10-04,T010,Licencia Básico,1,150.00€,10,50€,Tarjeta,Madrid
+2025-10-04,T010,Licencia Básico,1,150.00€,10.50€,Tarjeta,Madrid
 2025-10-04,T011,Servicio Premium,5,75.00€,25.00€,Transferencia,Barcelona
 2025-10-04,T012,Licencia Avanzada,1,160.00€,24.00€,Efectivo,Valencia
 2025-10-05,T013,Servicio Premium,1,15.00€,5.00€,Tarjeta,Madrid
