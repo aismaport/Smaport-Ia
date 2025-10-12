@@ -49,7 +49,7 @@ if archivo:
        # ==============================
         # 📊 RESUMEN ESTADÍSTICO (MEJORADO Y ROBUSTO)
         # ==============================
-st.subheader("📊 Resumen estadístico")
+        st.subheader ("📊 Resumen estadístico")
 
 try:
     # Garantizar que df existe y es DataFrame
