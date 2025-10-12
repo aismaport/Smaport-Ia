@@ -28,39 +28,55 @@ def find_column(df_columns, potential_names):
                 return col
     return None
 
-def detect_header_row(file_path):
+def detect_header_row(file_stream, is_csv):
     """
-    Intenta detectar la fila de encabezado real analizando las primeras filas.
+    Intenta detectar la fila de encabezado real (índice 0-9) buscando la fila 
+    con la mayor cantidad de celdas no vacías, probando distintas configuraciones.
     Devuelve el número de filas a saltar (skiprows).
     """
-    try:
-        # Cargamos las primeras 20 filas sin encabezado
-        temp_df = pd.read_csv(file_path, header=None, nrows=20, encoding='latin1', sep=',', on_bad_lines='skip')
-    except Exception:
-        # Intentar con punto y coma si falla la coma
-        try:
-            temp_df = pd.read_csv(file_path, header=None, nrows=20, encoding='latin1', sep=';', on_bad_lines='skip')
-        except Exception:
-            # Si ambos fallan, devolvemos 0 (comportamiento por defecto)
-            return 0
+    import io
+    file_stream.seek(0)
     
-    best_row_index = 0
-    max_text_cols = 0
-    
-    # Iteramos sobre las filas
-    for i in range(len(temp_df)):
-        # Contamos cuántas columnas en esta fila contienen texto (no son NaN)
-        # y no están vacías (con un pequeño umbral de longitud)
-        text_cols = temp_df.iloc[i].astype(str).str.strip().apply(lambda x: len(x) > 1).sum()
+    # Configuraciones de lectura a probar para la detección
+    if is_csv:
+        configs = [
+            {'sep': ',', 'encoding': 'latin1'},
+            {'sep': ';', 'encoding': 'latin1'},
+            {'sep': None, 'encoding': 'latin1'} # Intentar detección automática
+        ]
+        # Usaremos el motor 'python' para mayor flexibilidad con 'sep=None'
+        read_func = lambda stream, **kwargs: pd.read_csv(stream, engine='python', on_bad_lines='skip', **kwargs)
+    else:
+        configs = [{'sep': None, 'encoding': None}] # Excel
+        read_func = lambda stream, **kwargs: pd.read_excel(stream, engine='openpyxl', **kwargs)
         
-        # Si esta fila tiene más columnas de texto que la mejor encontrada hasta ahora, la seleccionamos.
-        if text_cols > max_text_cols:
-            max_text_cols = text_cols
-            best_row_index = i
+    best_skiprows = 0
+    max_valid_cols = 0
+    
+    # Intentar leer las primeras 20 filas con cada configuración
+    for config in configs:
+        try:
+            file_stream.seek(0)
             
-    # El número de filas a saltar es el índice de la fila real del encabezado.
-    # Si detecta el encabezado en la fila 0, devuelve 0. Si lo detecta en la fila 9, devuelve 9.
-    return best_row_index
+            # Cargamos solo las primeras 20 filas para la detección
+            temp_df = read_func(file_stream, header=None, nrows=20, encoding=config['encoding'], sep=config['sep'])
+
+            # Iteramos sobre las filas
+            for i in range(len(temp_df)):
+                row_data = temp_df.iloc[i]
+                
+                # Criterio: Contamos cuántas celdas tienen contenido real
+                # El criterio es que no sea nulo, ni una cadena vacía, ni el texto 'nan' o 'none'.
+                valid_cols = row_data.apply(lambda x: pd.notna(x) and str(x).strip().lower() not in ('', 'nan', 'none')).sum()
+                
+                if valid_cols > max_valid_cols:
+                    max_valid_cols = valid_cols
+                    best_skiprows = i # El índice de la fila es el número de filas a saltar
+        except Exception:
+            continue # Intentar la siguiente configuración
+
+    file_stream.seek(0) # Rebobinar el puntero del archivo para la lectura final
+    return best_skiprows
 
 def format_value(value, currency=False):
     """
@@ -99,36 +115,59 @@ st.write("Sube tu archivo CSV o Excel con datos de ventas, gastos o inventario."
 archivo = st.file_uploader("Selecciona un archivo", type=["csv", "xlsx"])
 
 if archivo:
-    # 1. Detección automática de la cabecera (solo para CSV/Texto)
-    skip_rows_count = 0
-    if archivo.name.endswith(".csv"):
-        # Para usar detect_header_row, necesitamos guardar el archivo temporalmente
-        # o manipular el stream (usaremos el stream para Streamlit)
-        try:
-            # Volver al inicio del stream para la detección de la cabecera
-            archivo.seek(0)
-            skip_rows_count = detect_header_row(archivo)
-            archivo.seek(0) # Volver a poner el puntero al inicio para la lectura final
-            st.info(f"✅ Cabecera detectada en la fila {skip_rows_count + 1}. Se saltarán {skip_rows_count} filas.")
-        except Exception as e:
-             st.warning(f"⚠️ No se pudo detectar la cabecera automáticamente, se usará el valor por defecto (0). Error: {e}")
+    # 1. Detección automática de la cabecera (skiprows)
+    is_csv = archivo.name.endswith(".csv")
+    
+    # Calculamos el número de filas a saltar
+    skip_rows_count = detect_header_row(archivo, is_csv=is_csv)
+    
+    if skip_rows_count > 0:
+        st.info(f"✅ Cabecera detectada en la fila **{skip_rows_count + 1}**. Se saltarán **{skip_rows_count}** filas de metadatos.")
+    else:
+        st.info("✅ Cabecera detectada en la primera fila (1). No se saltarán filas.")
 
     try:
         # 2. Cargar datos usando el parámetro skiprows detectado
-        if archivo.name.endswith(".csv"):
-            # Usar 'sep' como None para que Pandas intente detectar el delimitador (coma o punto y coma)
-            df = pd.read_csv(archivo, skiprows=skip_rows_count, encoding='latin1', sep=None, engine='python')
+        read_success = False
+        df = None
+        
+        if is_csv:
+            # Lógica de carga robusta para CSV: probar delimitadores y encoding
+            csv_configs = [
+                (',', 'latin1'), (';', 'latin1'), 
+                (',', 'utf-8'), (';', 'utf-8')
+            ]
+            
+            for sep, enc in csv_configs:
+                try:
+                    archivo.seek(0)
+                    # El header es la primera fila DESPUÉS de saltar skiprows (header=0)
+                    df = pd.read_csv(archivo, skiprows=skip_rows_count, encoding=enc, sep=sep, engine='python')
+                    read_success = True
+                    break
+                except Exception:
+                    continue
+            
+            if not read_success:
+                raise Exception("No se pudo cargar el archivo CSV con los delimitadores o codificaciones comunes.")
+
         else:
             # Para Excel, la detección de skiprows suele ser más sencilla
-            df = pd.read_excel(archivo, engine="openpyxl", skiprows=skip_rows_count, header=skip_rows_count)
+            archivo.seek(0)
+            # skiprows ya está ajustado. header=0 indica que la cabecera es la primera fila DESPUÉS de saltar.
+            df = pd.read_excel(archivo, engine="openpyxl", skiprows=skip_rows_count, header=0)
+            read_success = True
 
+        # Asegurarse de que el DataFrame se cargó
+        if df is None:
+            raise Exception("No se pudo cargar el archivo.")
 
         # ==============================
         # 🔧 LIMPIEZA DE DATOS
         # ==============================
         df = df.replace([float("inf"), float("-inf")], pd.NA)
-        df = df.dropna(how="all", axis=1)
-        df = df.dropna(how="all", axis=0)
+        df = df.dropna(how="all", axis=1) # Elimina columnas completamente vacías
+        df = df.dropna(how="all", axis=0) # Elimina filas completamente vacías
         df.columns = df.columns.map(str)
         df = df.loc[:, ~df.columns.str.contains('^Unnamed', na=False)]
 
@@ -237,7 +276,9 @@ if archivo:
         # ==============================
         if api_key and st.button("🤖 Generar análisis con IA"):
             try:
+                MODEL_NAME = "gpt-4o" 
                 client = OpenAI(api_key=api_key)
+                
                 # Ojo: Mantenemos head(50) aquí para no sobrecargar el prompt de la IA con archivos gigantes
                 resumen_datos = df.head(50).to_string() 
                 prompt = f"""
@@ -249,9 +290,9 @@ if archivo:
                 Datos:
                 {resumen_datos}
                 """
-                with st.spinner("Generando informe con IA..."):
+                with st.spinner(f"Generando informe con IA usando {MODEL_NAME}..."):
                     respuesta = client.chat.completions.create(
-                        model="gpt-3.5-turbo",
+                        model=MODEL_NAME, # Uso del nuevo modelo
                         messages=[{"role": "user", "content": prompt}]
                     )
                     analisis = respuesta.choices[0].message.content
