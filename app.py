@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from openai import OpenAI
+import os
 import io
 
 # ==============================
@@ -77,6 +78,7 @@ if archivo:
         # 🤖 ANÁLISIS CON IA
         # ==============================
         if api_key and st.button("🤖 Generar análisis con IA"):
+            api_key = api_key or os.getenv("OPENAI_API_KEY")
             client = OpenAI(api_key=api_key)
 
             resumen_datos = df.head(50).to_string()
