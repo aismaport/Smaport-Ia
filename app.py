@@ -46,37 +46,60 @@ if archivo:
         st.subheader("📄 Vista previa de los datos")
         st.dataframe(df.head(50))  # Solo muestra las primeras filas
 
+       # ==============================
+        # 📊 RESUMEN ESTADÍSTICO (MEJORADO Y ROBUSTO)
         # ==============================
-        # 📊 RESUMEN ESTADÍSTICO (MEJORADO)
-        # ==============================
-        st.subheader("📊 Resumen estadístico")
+st.subheader("📊 Resumen estadístico")
 
-        try:
-         # Copia del DataFrame original
-            df_clean = df.copy()
+try:
+    # Garantizar que df existe y es DataFrame
+    if not isinstance(df, pd.DataFrame):
+        df = pd.DataFrame(df)
 
-         # Normaliza los separadores decimales y elimina símbolos no numéricos
-            for col in df_clean.columns:
-            df_clean[col] = (
-            df_clean[col]
-            .astype(str)
-            .str.replace(",", ".", regex=False)  # cambia coma por punto
-            .str.replace("[^0-9.\-]", "", regex=True)  # elimina símbolos
+    # Crear copia de trabajo
+    df_clean = df.copy()
+
+    # --- DEBUG: mostrar tipos detectados (útil si algo falla)
+    st.write("🧩 Tipos detectados (antes de limpiar):")
+    st.write(df_clean.dtypes)
+
+    # Asegurar que todos los nombres de columnas sean strings (evita problemas con '~' y .str)
+    df_clean.columns = df_clean.columns.map(lambda c: "" if pd.isna(c) else str(c))
+
+    # Convertir todo a str para limpiar caracteres no numéricos
+    df_str = df_clean.astype(str)
+
+    # Reemplazar comas decimales por punto y eliminar símbolos no numéricos (excepto '-' y '.')
+    # Hacemos esto por columna para evitar avisos de pandas
+    for col in df_str.columns.tolist():
+        # Reemplazo: coma -> punto, luego eliminar cualquier cosa que no sea dígito, punto o guion
+        df_str[col] = (
+            df_str[col]
+            .str.replace(",", ".", regex=False)
+            .str.replace(r"[^0-9.\-]", "", regex=True)
+            .replace("", pd.NA)  # cadenas vacías vuelven a NA
         )
 
-        # Convierte a número donde se pueda
-        numeric_df = df_clean.apply(pd.to_numeric, errors="coerce")
+    # Intentar convertir a numérico (coerce convierte lo que no pueda a NaN)
+    numeric_df = df_str.apply(pd.to_numeric, errors="coerce")
 
-        # Selecciona solo las columnas que realmente son numéricas
-        numeric_cols = numeric_df.select_dtypes(include="number").columns
+    # Seleccionar sólo columnas numéricas detectadas
+    numeric_cols = numeric_df.select_dtypes(include="number").columns.tolist()
 
-        if len(numeric_cols) == 0:
-            st.warning("⚠️ No se encontraron columnas numéricas para analizar.")
-        else:
-            st.dataframe(numeric_df[numeric_cols].describe().T)
+    if len(numeric_cols) == 0:
+        st.warning("⚠️ No se encontraron columnas numéricas para analizar.")
+    else:
+        # Mostrar tipos después de la limpieza (útil para depuración)
+        st.write("🧩 Tipos detectados (después de limpiar):")
+        st.write(numeric_df[numeric_cols].dtypes)
 
-        except Exception as e:
-            st.error(f"⚠️ No se pudo generar el resumen estadístico: {e}")
+        # Mostrar resumen estadístico transpuesto (más legible)
+        st.dataframe(numeric_df[numeric_cols].describe().T)
+
+except Exception as e:
+    st.error(f"⚠️ No se pudo generar el resumen estadístico: {e}")
+    # Mostrar info adicional para depurar
+    st.exception(e)
 
         # ==============================
         # 🤖 ANÁLISIS CON IA
