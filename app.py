@@ -69,7 +69,7 @@ if archivo:
 # ==============================
 # 📊 RESUMEN EJECUTIVO DE NEGOCIO (INTELIGENTE)
 # ==============================
-st.subheader("📊 Resumen ejecutivo del negocio")
+    st.subheader("📊 Resumen ejecutivo del negocio")
 
 # 💡 FUNCIÓN DE FORMATO PARA VALORES FINANCIEROS Y GENERALES
 def format_value(value, currency=False):
