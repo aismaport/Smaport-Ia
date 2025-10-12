@@ -65,8 +65,17 @@ if archivo:
                 resumen["Productos únicos"] = df["Producto"].nunique()
 
             # --- Indicadores financieros ---
-            ingresos = pd.to_numeric(df.get("Ingresos", 0), errors="coerce").sum()
-            coste = pd.to_numeric(df.get("Coste", 0), errors="coerce").sum()
+            # FIX: Comprobar si las columnas existen antes de intentar usarlas.
+            if "Ingresos" in df.columns:
+                ingresos = pd.to_numeric(df["Ingresos"], errors="coerce").sum()
+            else:
+                ingresos = 0
+
+            if "Coste" in df.columns:
+                coste = pd.to_numeric(df["Coste"], errors="coerce").sum()
+            else:
+                coste = 0
+
             beneficio = ingresos - coste
             margen = (beneficio / ingresos * 100) if ingresos > 0 else 0
 
@@ -103,23 +112,27 @@ if archivo:
                 df_temp = df.copy()
                 df_temp["Fecha"] = pd.to_datetime(df_temp["Fecha"], errors="coerce")
                 df_temp = df_temp.dropna(subset=["Fecha"])
-                df_temp = df_temp.groupby("Fecha")["Ingresos"].sum().reset_index()
-                st.line_chart(df_temp.set_index("Fecha"))
+                # FIX: Asegurarse de que el índice es correcto para el gráfico de líneas
+                df_temp_grouped = df_temp.groupby(df_temp['Fecha'].dt.to_period('D'))['Ingresos'].sum()
+                st.line_chart(df_temp_grouped)
+
 
             # ==============================
             # ⚠️ DETECCIÓN DE ANOMALÍAS
             # ==============================
             if "Ingresos" in df.columns:
-                ingresos_num = pd.to_numeric(df["Ingresos"], errors="coerce")
-                mean = ingresos_num.mean()
-                std = ingresos_num.std()
-                umbral_superior = mean + 2 * std
-                umbral_inferior = mean - 2 * std
-                outliers = df[(ingresos_num > umbral_superior) | (ingresos_num < umbral_inferior)]
+                ingresos_num = pd.to_numeric(df["Ingresos"], errors="coerce").dropna()
+                if not ingresos_num.empty:
+                    mean = ingresos_num.mean()
+                    std = ingresos_num.std()
+                    umbral_superior = mean + 2 * std
+                    umbral_inferior = mean - 2 * std
+                    outliers = df[(ingresos_num > umbral_superior) | (ingresos_num < umbral_inferior)]
 
-                if not outliers.empty:
-                    st.subheader("⚠️ Posibles anomalías detectadas en ingresos")
-                    st.dataframe(outliers[["Fecha", "Producto", "Ingresos"]])
+                    if not outliers.empty:
+                        st.subheader("⚠️ Posibles anomalías detectadas en ingresos")
+                        columnas_a_mostrar = [col for col in ["Fecha", "Producto", "Ingresos"] if col in df.columns]
+                        st.dataframe(outliers[columnas_a_mostrar])
 
         except Exception as e:
             st.error(f"⚠️ No se pudo generar el resumen ejecutivo: {e}")
@@ -129,39 +142,42 @@ if archivo:
         # 🤖 ANÁLISIS CON IA
         # ==============================
         if api_key and st.button("🤖 Generar análisis con IA"):
-            api_key = api_key or os.getenv("OPENAI_API_KEY")
-            client = OpenAI(api_key=api_key)
+            try:
+                client = OpenAI(api_key=api_key)
 
-            resumen_datos = df.head(50).to_string()
-            prompt = f"""
-            Analiza los siguientes datos de negocio y genera un resumen ejecutivo profesional:
-            - Describe las principales tendencias.
-            - Identifica los productos o periodos más rentables.
-            - Sugiere 3 recomendaciones para mejorar las ventas.
+                resumen_datos = df.head(50).to_string()
+                prompt = f"""
+                Analiza los siguientes datos de negocio y genera un resumen ejecutivo profesional:
+                - Describe las principales tendencias.
+                - Identifica los productos o periodos más rentables.
+                - Sugiere 3 recomendaciones para mejorar las ventas.
 
-            Datos:
-            {resumen_datos}
-            """
+                Datos:
+                {resumen_datos}
+                """
 
-            with st.spinner("Generando informe con IA..."):
-                respuesta = client.chat.completions.create(
-                    model="gpt-5",
-                    messages=[{"role": "user", "content": prompt}]
+                with st.spinner("Generando informe con IA..."):
+                    # NOTA: "gpt-5" no es un modelo válido actualmente. Se usará gpt-3.5-turbo.
+                    respuesta = client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    analisis = respuesta.choices[0].message.content
+
+                st.subheader("🧾 Informe de IA")
+                st.markdown(analisis)
+
+                # Descargar informe
+                buffer = io.BytesIO(analisis.encode("utf-8"))
+                st.download_button(
+                    label="📥 Descargar informe (TXT)",
+                    data=buffer,
+                    file_name="informe_smaport.txt",
+                    mime="text/plain"
                 )
-                analisis = respuesta.choices[0].message.content
+            except Exception as e:
+                st.error(f"❌ Error al conectar con la API de OpenAI: {e}")
 
-            st.subheader("🧾 Informe de IA")
-            st.write(analisis)
-
-            # Descargar informe
-            buffer = io.BytesIO()
-            buffer.write(analisis.encode("utf-8"))
-            st.download_button(
-                label="📥 Descargar informe (TXT)",
-                data=buffer,
-                file_name="informe_smaport.txt",
-                mime="text/plain"
-            )
 
     except Exception as e:
         st.error(f"❌ Error al cargar o procesar el archivo: {e}")
