@@ -47,71 +47,83 @@ if archivo:
         st.dataframe(df.head(50))  # Solo muestra las primeras filas
 
         # ==============================
-        # 📊 RESUMEN ESTADÍSTICO (MEJORADO Y ROBUSTO)
+        # 📊 RESUMEN EJECUTIVO DE NEGOCIO (INTELIGENTE)
         # ==============================
-        st.subheader("📊 Resumen estadístico")
+        st.subheader("📊 Resumen ejecutivo del negocio")
 
         try:
-            # Garantizar que df existe y es DataFrame
-            if not isinstance(df, pd.DataFrame):
-                df = pd.DataFrame(df)
+            resumen = {}
 
-            # Crear copia de trabajo
-            df_clean = df.copy()
+            # --- Información general ---
+            resumen["Total de registros"] = len(df)
 
-            # --- DEBUG: mostrar tipos detectados (útil si algo falla)
-            st.write("🧩 Tipos detectados (antes de limpiar):")
-            st.write(df_clean.dtypes)
+            if "Fecha" in df.columns:
+                df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
+                resumen["Periodo analizado"] = f"{df['Fecha'].min().date()} → {df['Fecha'].max().date()}"
 
-            # Asegurar que todos los nombres de columnas sean strings (evita problemas con '~' y .str)
-            df_clean.columns = df_clean.columns.map(lambda c: "" if pd.isna(c) else str(c))
+            if "Producto" in df.columns:
+                resumen["Productos únicos"] = df["Producto"].nunique()
 
-            # Convertir todo a str para limpiar caracteres no numéricos
-            df_str = df_clean.astype(str)
+            # --- Indicadores financieros ---
+            ingresos = pd.to_numeric(df.get("Ingresos", 0), errors="coerce").sum()
+            coste = pd.to_numeric(df.get("Coste", 0), errors="coerce").sum()
+            beneficio = ingresos - coste
+            margen = (beneficio / ingresos * 100) if ingresos > 0 else 0
 
-            # Reemplazar comas decimales por punto y eliminar símbolos no numéricos (excepto '-' y '.')
-            # Hacemos esto por columna para evitar avisos de pandas
-            for col in df_str.columns.tolist():
-                # Reemplazo: coma -> punto, luego eliminar cualquier cosa que no sea dígito, punto o guion
-                df_str[col] = (
-                    df_str[col]
-                    .str.replace(",", ".", regex=False)
-                    .str.replace(r"[^0-9.\-]", "", regex=True)
-                    .replace("", pd.NA)  # cadenas vacías vuelven a NA
+            resumen["💰 Ingresos totales (€)"] = round(ingresos, 2)
+            resumen["📉 Coste total (€)"] = round(coste, 2)
+            resumen["🧮 Beneficio total (€)"] = round(beneficio, 2)
+            resumen["📊 Margen medio (%)"] = round(margen, 2)
+
+            if "Unidades vendidas" in df.columns:
+                unidades = pd.to_numeric(df["Unidades vendidas"], errors="coerce").sum()
+                resumen["📦 Total unidades vendidas"] = int(unidades)
+
+            # Mostrar indicadores en formato tabla
+            st.table(pd.DataFrame(resumen.items(), columns=["Indicador", "Valor"]))
+
+            # ==============================
+            # 🏆 TOP PRODUCTOS
+            # ==============================
+            if {"Producto", "Ingresos"} <= set(df.columns):
+                st.subheader("🏆 Top productos más rentables")
+                top_prod = (
+                    df.groupby("Producto")["Ingresos"]
+                    .sum()
+                    .sort_values(ascending=False)
+                    .head(5)
                 )
+                st.bar_chart(top_prod)
 
-            # Intentar convertir a numérico (coerce convierte lo que no pueda a NaN)
-            numeric_df = df_str.apply(pd.to_numeric, errors="coerce")
+            # ==============================
+            # 📅 ANÁLISIS TEMPORAL
+            # ==============================
+            if "Fecha" in df.columns and "Ingresos" in df.columns:
+                st.subheader("⏳ Tendencia de ingresos")
+                df_temp = df.copy()
+                df_temp["Fecha"] = pd.to_datetime(df_temp["Fecha"], errors="coerce")
+                df_temp = df_temp.dropna(subset=["Fecha"])
+                df_temp = df_temp.groupby("Fecha")["Ingresos"].sum().reset_index()
+                st.line_chart(df_temp.set_index("Fecha"))
 
-            # Seleccionar sólo columnas numéricas detectadas
-            numeric_cols = numeric_df.select_dtypes(include="number").columns.tolist()
+            # ==============================
+            # ⚠️ DETECCIÓN DE ANOMALÍAS
+            # ==============================
+            if "Ingresos" in df.columns:
+                ingresos_num = pd.to_numeric(df["Ingresos"], errors="coerce")
+                mean = ingresos_num.mean()
+                std = ingresos_num.std()
+                umbral_superior = mean + 2 * std
+                umbral_inferior = mean - 2 * std
+                outliers = df[(ingresos_num > umbral_superior) | (ingresos_num < umbral_inferior)]
 
-            if len(numeric_cols) == 0:
-                st.warning("⚠️ No se encontraron columnas numéricas para analizar.")
-            else:
-                # Mostrar tipos después de la limpieza (útil para depuración)
-                st.write("🧩 Tipos detectados (después de limpiar):")
-                st.write(numeric_df[numeric_cols].dtypes)
-
-                # Mostrar resumen estadístico transpuesto (más legible)
-                st.dataframe(numeric_df[numeric_cols].describe().T)
+                if not outliers.empty:
+                    st.subheader("⚠️ Posibles anomalías detectadas en ingresos")
+                    st.dataframe(outliers[["Fecha", "Producto", "Ingresos"]])
 
         except Exception as e:
-            st.error(f"⚠️ No se pudo generar el resumen estadístico: {e}")
-            # Mostrar info adicional para depurar
+            st.error(f"⚠️ No se pudo generar el resumen ejecutivo: {e}")
             st.exception(e)
-        
-        # Gráfico automático
-        if "Fecha" in df.columns and "Ingresos" in df.columns:
-        st.subheader("📊 Evolución de ingresos")
-        df["Fecha"] = pd.to_datetime(df["Fecha"])
-        df.sort_values("Fecha", inplace=True)
-        fig, ax = plt.subplots()
-        ax.plot(df["Fecha"], df["Ingresos"], marker="o")
-        ax.set_title("Ingresos por fecha")
-        ax.set_xlabel("Fecha")
-        ax.set_ylabel("Ingresos (€)")
-        st.pyplot(fig)
             
         # ==============================
         # 🤖 ANÁLISIS CON IA
