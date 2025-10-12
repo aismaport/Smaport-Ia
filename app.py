@@ -47,32 +47,36 @@ if archivo:
         st.dataframe(df.head(50))  # Solo muestra las primeras filas
 
         # ==============================
-        # 📈 ANÁLISIS ESTADÍSTICO
+        # 📊 RESUMEN ESTADÍSTICO (MEJORADO)
         # ==============================
         st.subheader("📊 Resumen estadístico")
-        try:
-            numeric_df = df.apply(pd.to_numeric, errors='coerce')
-            st.dataframe(numeric_df.describe())
-        except Exception:
-            st.info("⚠️ No se pudieron calcular estadísticas numéricas. Verifica que haya columnas numéricas.")
 
-        # ==============================
-        # 📉 GRÁFICO AUTOMÁTICO
-        # ==============================
-        if "Fecha" in df.columns and "Ingresos" in df.columns:
-            try:
-                st.subheader("📊 Evolución de ingresos")
-                df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
-                df = df.dropna(subset=["Fecha"])
-                df.sort_values("Fecha", inplace=True)
-                fig, ax = plt.subplots()
-                ax.plot(df["Fecha"], pd.to_numeric(df["Ingresos"], errors="coerce"), marker="o")
-                ax.set_title("Ingresos por fecha")
-                ax.set_xlabel("Fecha")
-                ax.set_ylabel("Ingresos (€)")
-                st.pyplot(fig)
-            except Exception as e:
-                st.warning(f"No se pudo generar el gráfico: {e}")
+        try:
+         # Copia del DataFrame original
+            df_clean = df.copy()
+
+         # Normaliza los separadores decimales y elimina símbolos no numéricos
+            for col in df_clean.columns:
+            df_clean[col] = (
+            df_clean[col]
+            .astype(str)
+            .str.replace(",", ".", regex=False)  # cambia coma por punto
+            .str.replace("[^0-9.\-]", "", regex=True)  # elimina símbolos
+        )
+
+        # Convierte a número donde se pueda
+        numeric_df = df_clean.apply(pd.to_numeric, errors="coerce")
+
+        # Selecciona solo las columnas que realmente son numéricas
+        numeric_cols = numeric_df.select_dtypes(include="number").columns
+
+        if len(numeric_cols) == 0:
+            st.warning("⚠️ No se encontraron columnas numéricas para analizar.")
+        else:
+            st.dataframe(numeric_df[numeric_cols].describe().T)
+
+        except Exception as e:
+            st.error(f"⚠️ No se pudo generar el resumen estadístico: {e}")
 
         # ==============================
         # 🤖 ANÁLISIS CON IA
