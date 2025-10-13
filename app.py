@@ -32,13 +32,14 @@ std_multiplier = st.sidebar.slider(
 MODEL_NAME = "gpt-4o" # Modelo de IA de última generación (Mejora 4)
 
 # ==============================
-#  HELPER FUNCTIONS
+#  HELPER FUNCTIONS
 # ==============================
 def find_column(df_columns, potential_names):
     """Busca una columna en el dataframe ignorando mayúsculas/minúsculas."""
     for name in potential_names:
         for col in df_columns:
-            if name.lower() == col.lower():
+            # Usamos strip().lower() para limpiar espacios y comparar
+            if name.lower() == col.lower().strip():
                 return col
     return None
 
@@ -51,12 +52,13 @@ def detect_header_row(file_stream, is_csv):
     import io
     file_stream.seek(0)
     
-    # Configuraciones de lectura a probar para la detección
+    # Configuraciones de lectura a probar para la detección. Priorizamos ';'
     if is_csv:
         configs = [
-            {'sep': ',', 'encoding': 'latin1'},
             {'sep': ';', 'encoding': 'latin1'},
+            {'sep': ',', 'encoding': 'latin1'},
             {'sep': None, 'encoding': 'latin1'},
+            {'sep': ';', 'encoding': 'utf-8'},
             {'sep': ',', 'encoding': 'utf-8'}
         ]
         read_func = lambda stream, **kwargs: pd.read_csv(stream, engine='python', on_bad_lines='skip', **kwargs)
@@ -91,52 +93,66 @@ def format_value(value, currency=False):
     if pd.isna(value) or value is None:
         return "N/A"
 
-    # Redondeamos a 2 decimales para la lógica monetaria
     val_rounded = round(value, 2)
     
-    # Usamos la configuración regional para manejar separadores (ej: español: punto decimal, coma de miles)
-    # Sin embargo, en Streamlit, es más seguro forzar un formato específico para la consistencia:
-    
-    # Convertimos a string con separador de miles (,) y luego lo reemplazamos por el estilo común europeo (espacio para miles)
     if currency:
-        if val_rounded == round(val_rounded):
-            # Formato de entero sin decimales (ej: 1 200)
-            return f"€ {int(val_rounded):,}".replace(",", " ")
-        else:
-            # Formato con 2 decimales (ej: 1 200,50)
-            return f"€ {val_rounded:,.2f}".replace(",", "_TEMP_").replace(".", ",").replace("_TEMP_", " ")
+        # Usamos :.2f para forzar 2 decimales y luego manejamos los separadores
+        
+        # 1. Obtenemos el formato americano con coma de miles y punto decimal
+        # Usamos round(val_rounded) para evitar el error si el valor ya es float
+        formatted = f"{val_rounded:,.2f}"
+        
+        # 2. Convertimos al formato europeo:
+        # Reemplazamos el separador decimal (punto) por el temporal _TEMP_
+        formatted = formatted.replace(".", "_TEMP_")
+        # Reemplazamos el separador de miles (coma) por punto (o espacio, pero usaremos espacio)
+        formatted = formatted.replace(",", " ")
+        # Reemplazamos el separador decimal temporal por coma
+        formatted = formatted.replace("_TEMP_", ",")
+        
+        return f"€ {formatted}"
     else:
+        # Para valores no monetarios, solo formato de miles con espacio
         try:
-            # Intentamos convertir a entero para evitar decimales innecesarios
             return f"{int(round(value)):,}".replace(",", " ")
         except (ValueError, TypeError):
-            # Si no se puede, lo dejamos con 2 decimales
             return f"{val_rounded:,.2f}".replace(",", "_TEMP_").replace(".", ",").replace("_TEMP_", " ")
 
 
 def clean_numeric_column(series):
     """
-    Limpia y convierte una Serie de Pandas a formato numérico (float). (Mejora 1)
-    Elimina caracteres comunes como €$,% y comas de miles.
+    CORRECCIÓN: Limpia y convierte una Serie de Pandas a formato numérico (float), 
+    manejando explícitamente el formato europeo (coma decimal y punto de miles).
     """
     if series.dtype != 'object':
         return pd.to_numeric(series, errors='coerce')
 
-    # Expresión regular para eliminar caracteres no numéricos y permitir el punto decimal
-    # Se eliminan €$,% y cualquier espacio. Se reemplaza la coma de miles (si existe)
-    cleaned_series = series.astype(str).str.replace(r'[€$,%]', '', regex=True).str.strip()
+    series_str = series.astype(str).str.strip()
     
-    # Intenta detectar si el formato usa coma como separador decimal (formato europeo 1.000,50)
-    # Si la mayoría de los valores tiene UNA sola coma y CERO puntos, se asume coma decimal.
+    # Paso 1: Eliminar símbolos de moneda y porcentaje (ej: €, $, %, £)
+    cleaned_series = series_str.str.replace(r'[€$£%]', '', regex=True)
     
-    has_comma = cleaned_series.str.count(',').sum()
-    has_dot = cleaned_series.str.count('\.').sum()
+    # Paso 2: Detección y limpieza del formato numérico
+    has_comma = cleaned_series.str.contains(',').sum()
+    has_dot = cleaned_series.str.contains('\.').sum()
     
-    # Heurística: si hay muchas comas pero pocos puntos, la coma es decimal.
-    if has_comma > 0 and has_dot < has_comma / 5: # Si hay al menos 5 veces más comas que puntos
-        cleaned_series = cleaned_series.str.replace('.', '', regex=False) # Eliminar separador de miles
-        cleaned_series = cleaned_series.str.replace(',', '.', regex=False) # Reemplazar coma decimal por punto
+    # Heurística para formato Europeo: Si hay más comas que puntos, asumimos coma decimal.
+    # O si solo hay comas (ej. 9800,00)
+    is_european_format = (has_comma > 0) and (has_comma >= has_dot)
+    
+    if is_european_format:
+        # 2a. Formato Europeo (ej: 1.000,50): 
+        # 1. Eliminar puntos (separador de miles)
+        # 2. Reemplazar la coma (separador decimal) por punto (estándar Python/Pandas)
+        cleaned_series = cleaned_series.str.replace('.', '', regex=False)
+        cleaned_series = cleaned_series.str.replace(',', '.', regex=False)
+    else:
+        # 2b. Formato Americano (ej: 1,000.50): 
+        # 1. Eliminar comas (separador de miles).
+        cleaned_series = cleaned_series.str.replace(',', '', regex=False)
+        # El punto decimal ya está correcto.
 
+    # Paso 3: Convertir a numérico
     return pd.to_numeric(cleaned_series, errors='coerce')
 
 
@@ -164,18 +180,20 @@ if archivo:
         df = None
         
         if is_csv:
-            # Lógica de carga robusta para CSV: probar delimitadores y encoding
+            # Lógica de carga robusta para CSV: Priorizamos ';' para formato europeo
             csv_configs = [
-                (',', 'latin1'), (';', 'latin1'), 
-                (',', 'utf-8'), (';', 'utf-8')
+                (';', 'latin1'), (',', 'latin1'), 
+                (';', 'utf-8'), (',', 'utf-8')
             ]
             
             for sep, enc in csv_configs:
                 try:
                     archivo.seek(0)
-                    df = pd.read_csv(archivo, skiprows=skip_rows_count, encoding=enc, sep=sep, engine='python')
-                    read_success = True
-                    break
+                    # El argumento 'header=0' es importante después de skiprows
+                    df = pd.read_csv(archivo, skiprows=skip_rows_count, encoding=enc, sep=sep, engine='python', header=0)
+                    if not df.empty: # Aseguramos que la carga fue exitosa y no es solo metadatos
+                        read_success = True
+                        break
                 except Exception:
                     continue
             
@@ -188,8 +206,8 @@ if archivo:
             df = pd.read_excel(archivo, engine="openpyxl", skiprows=skip_rows_count, header=0)
             read_success = True
 
-        if df is None:
-            raise Exception("No se pudo cargar el archivo.")
+        if df is None or df.empty:
+            raise Exception("El archivo fue cargado, pero no contiene datos después de saltar las filas de metadatos.")
 
         # ==============================
         # 🔧 LIMPIEZA DE DATOS
@@ -197,30 +215,32 @@ if archivo:
         df = df.replace([float("inf"), float("-inf")], pd.NA)
         df = df.dropna(how="all", axis=1)
         df = df.dropna(how="all", axis=0)
-        df.columns = df.columns.map(str).str.strip()
+        # Limpiamos nombres de columnas (eliminamos espacios, € y el símbolo de la moneda en la columna)
+        df.columns = df.columns.map(str).str.strip().str.replace(r'[^\w\s]', '', regex=True).str.strip()
         df = df.loc[:, ~df.columns.str.contains('^Unnamed', na=False)]
 
         # ==============================
         # 🔎 DETECCIÓN DINÁMICA DE COLUMNAS
         # ==============================
         date_col = find_column(df.columns, ["Fecha", "Date", "Día"])
+        # Buscamos columnas sin el símbolo €/() que fue limpiado en el paso anterior
         revenue_col = find_column(df.columns, ["Ingresos", "Ventas", "Revenue", "Ingreso", "Facturado", "Importe"])
         cost_col = find_column(df.columns, ["Coste", "Costes", "Gastos", "Costo", "Gasto"])
         product_col = find_column(df.columns, ["Producto", "Product", "Concepto", "Item", "Descripción", "Detalle"])
         units_col = find_column(df.columns, ["Unidades vendidas", "Unidades", "Cantidad", "Qty"])
 
         # ==============================
-        # 🧹 CONVERSIÓN DE TIPOS (Mejora 1)
+        # 🧹 CONVERSIÓN DE TIPOS (Usando la función mejorada)
         # ==============================
         if revenue_col:
             df[revenue_col] = clean_numeric_column(df[revenue_col])
         if cost_col:
             df[cost_col] = clean_numeric_column(df[cost_col])
         if units_col:
-            df[units_col] = clean_numeric_column(df[units_col]).astype('Int64', errors='ignore') # Usar Int64 para NaN en enteros
+            df[units_col] = clean_numeric_column(df[units_col]).astype('Int64', errors='ignore')
         if date_col:
-            df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
-            df = df.dropna(subset=[date_col]) # Eliminar filas sin fecha válida
+            df[date_col] = pd.to_datetime(df[date_col], errors="coerce", dayfirst=True) # Añadido dayfirst=True para formato europeo DD/MM/AAAA
+            df = df.dropna(subset=[date_col])
 
         # ==============================
         # 👀 VISTA PREVIA
@@ -269,7 +289,7 @@ if archivo:
             # 🏆 TOP PRODUCTOS (Usando Top N configurable - Mejora 3)
             # ==============================
             if product_col and revenue_col:
-                st.subheader(f"🏆 Top {top_n_productos} {product_col.capitalize()}s más rentables")
+                st.subheader(f"🏆 Top {top_n_productos} Productos/Servicios más rentables")
                 top_prod = (
                     df.groupby(product_col)[revenue_col]
                     .sum()
@@ -345,7 +365,7 @@ if archivo:
                 
                 # Agregar el resumen estadístico al prompt (Mejora 4)
                 resumen_estadistico = df.describe(include='all').to_string()
-                resumen_datos = df.head(50).to_string() 
+                resumen_datos = df.head(50).to_string()
                 
                 prompt = f"""
                 Analiza los siguientes datos de negocio y genera un resumen ejecutivo profesional y profundo:
@@ -381,4 +401,3 @@ if archivo:
                 st.error(f"❌ Error al conectar con la API de OpenAI. Por favor, verifica tu clave. Error: {e}")
     except Exception as e:
         st.error(f"❌ Error al cargar o procesar el archivo. Verifica si el archivo está dañado o tiene un formato inesperado después de la fila {skip_rows_count + 1}. Error: {e}")
-
