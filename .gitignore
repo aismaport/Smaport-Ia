@@ -1,0 +1,20 @@
+# =====================================
+# IGNORAR ARCHIVOS SENSIBLES Y TEMPORALES
+# =====================================
+
+# Streamlit secrets (contiene claves privadas)
+.streamlit/secrets.toml
+
+# Archivos del entorno o dependencias locales
+.env
+__pycache__/
+*.pyc
+*.pyo
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Carpetas temporales
+tmp/
+logs/
