@@ -261,3 +261,16 @@ if archivo:
 
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {e}")
+        
+# ==============================
+# 🪶 FOOTER — CRÉDITO DISCRETO
+# ==============================
+st.markdown(
+    """
+    <hr style="margin-top: 50px; margin-bottom: 10px;">
+    <div style="text-align:center; color:gray; font-size: 14px;">
+        Desarrollado con ❤️ por <strong>Smaport IA</strong>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
