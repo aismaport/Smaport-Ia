@@ -6,6 +6,15 @@ from openai import OpenAI
 import io
 
 # ==============================
+# 🔐 CARGA DE API KEY (automática o manual)
+# ==============================
+api_key = None
+if "OPENAI_API_KEY" in st.secrets:
+    api_key = st.secrets["OPENAI_API_KEY"]
+elif "OPENAI_API_KEY" in os.environ:
+    api_key = os.environ["OPENAI_API_KEY"]
+
+# ==============================
 # 📘 CONFIGURACIÓN DE LA APP
 # ==============================
 st.set_page_config(page_title="Smaport IA", page_icon="📊", layout="wide")
@@ -269,7 +278,7 @@ st.markdown(
     """
     <hr style="margin-top: 50px; margin-bottom: 10px;">
     <div style="text-align:center; color:gray; font-size: 14px;">
-        Desarrollado con ❤️ por <strong>Smaport IA</strong>
+        Desarrollado por <strong>Smaport IA</strong>
     </div>
     """,
     unsafe_allow_html=True
