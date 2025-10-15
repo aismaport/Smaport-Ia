@@ -4,15 +4,15 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 from openai import OpenAI
 import io
+import os
 
 # ==============================
-# 🔐 CARGA DE API KEY (automática o manual)
+# 🔐 CARGA DE API KEY DESDE GITHUB SECRETS (variables de entorno)
 # ==============================
-api_key = None
-if "OPENAI_API_KEY" in st.secrets:
-    api_key = st.secrets["OPENAI_API_KEY"]
-elif "OPENAI_API_KEY" in os.environ:
-    api_key = os.environ["OPENAI_API_KEY"]
+api_key = os.getenv("OPENAI_API_KEY")
+
+if not api_key:
+    st.warning("⚠️ No se encontró la clave API. Asegúrate de definir OPENAI_API_KEY como Secret en GitHub o en Streamlit Cloud.")
 
 # ==============================
 # 📘 CONFIGURACIÓN DE LA APP
@@ -24,8 +24,8 @@ st.title("📊 Smaport IA — Analista de Negocio Inteligente")
 # 🧭 SIDEBAR
 # ==============================
 st.sidebar.header("Configuración")
-api_key = st.sidebar.text_input("🔑 Ingresa tu API Key de OpenAI", type="password")
-MODEL_NAME = "gpt-5"  # usas GPT-5
+
+MODEL_NAME = "gpt-5"  # Usas GPT-5
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Opciones de visualización")
@@ -49,8 +49,8 @@ def clean_numeric(series):
     return (
         series.astype(str)
         .str.replace(r"[€$,%]", "", regex=True)
-        .str.replace(".", "", regex=False)  # primero eliminar posibles separadores de miles con punto
-        .str.replace(",", ".", regex=False)  # y dejar coma decimal como punto
+        .str.replace(".", "", regex=False)
+        .str.replace(",", ".", regex=False)
         .str.strip()
         .replace("", pd.NA)
         .pipe(pd.to_numeric, errors="coerce")
@@ -60,7 +60,6 @@ def format_value(val, currency=False):
     if pd.isna(val):
         return "N/A"
     if currency:
-        # euro format with space as thousands sep and comma as decimal
         return f"€ {val:,.2f}".replace(",", "_").replace(".", ",").replace("_", " ")
     return f"{val:,.0f}".replace(",", " ")
 
@@ -148,13 +147,11 @@ if archivo:
             st.bar_chart(top_prod)
 
         # ==============================
-        # 📊 RESUMEN GRÁFICO ADICIONAL 
-        # - Pie: participación de ingresos por producto (top N)
-        # - Área/line: evolución del margen en el tiempo (si existe cost)
+        # 📈 RESUMEN GRÁFICO
         # ==============================
         st.subheader("📈 Resumen gráfico")
 
-        # Pie chart: participación por producto (top N)
+        # Pie chart
         if product_col and revenue_col:
             try:
                 pie_df = (
@@ -171,30 +168,24 @@ if archivo:
             except Exception as e:
                 st.warning(f"No se pudo generar el gráfico de participación por producto: {e}")
 
-        # Margin over time if we have cost + revenue
+        # Margen en el tiempo
         if date_col and revenue_col and cost_col and cost_col in df.columns:
             try:
                 st.subheader("📉 Evolución del margen (por periodo)")
-
                 df_margin = df[[date_col, revenue_col, cost_col]].dropna()
-                # Agregar por periodo mensual para suavizar
                 df_margin = df_margin.set_index(date_col).resample("M").sum().reset_index()
                 df_margin['margen_abs'] = df_margin[revenue_col] - df_margin[cost_col]
-                # margen relativo %
                 df_margin['margen_pct'] = df_margin['margen_abs'] / df_margin[revenue_col] * 100
                 df_margin['margen_pct'] = df_margin['margen_pct'].fillna(0)
-
                 fig_margin = px.line(df_margin, x=date_col, y='margen_pct',
-                                     title="Margen % por periodo (resample mensual)",
+                                     title="Margen % por periodo (mensual)",
                                      labels={'margen_pct':'Margen (%)', date_col:'Fecha'})
                 fig_margin.update_traces(mode='lines+markers')
                 st.plotly_chart(fig_margin, use_container_width=True)
             except Exception as e:
                 st.warning(f"No se pudo generar el gráfico del margen: {e}")
 
-        # ==============================
-        # 📅 TENDENCIA TEMPORAL
-        # ==============================
+        # Evolución de ingresos
         if date_col and revenue_col:
             st.subheader("⏳ Evolución de ingresos (resample dinámico)")
             time_range = df[date_col].max() - df[date_col].min()
@@ -270,7 +261,7 @@ if archivo:
 
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {e}")
-        
+
 # ==============================
 # 🪶 FOOTER — CRÉDITO DISCRETO
 # ==============================
