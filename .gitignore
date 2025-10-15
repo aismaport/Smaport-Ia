@@ -3,7 +3,7 @@
 # =====================================
 
 # Streamlit secrets (contiene claves privadas)
-.streamlit/secrets.toml
+.streamlit/
 
 # Archivos del entorno o dependencias locales
 .env
