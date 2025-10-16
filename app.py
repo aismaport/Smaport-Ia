@@ -113,50 +113,44 @@ if archivo:
             df = df.dropna(subset=[date_col])
 
         # ==============================
-        # 👀 VISTA PREVIA
+        # 📊 INTERFAZ CON PESTAÑAS
         # ==============================
-        st.subheader("📄 Vista previa de los datos (limpios)") 
-        st.dataframe(df.head(40))
-        # ==============================
-        # 📊 RESUMEN EJECUTIVO
-        # ==============================
-        st.subheader("📊 Resumen ejecutivo")
+        tab1, tab2, tab3 = st.tabs(["📈 Resumen", "📊 Gráficos", "🤖 Informe IA"])
 
-        ingresos = df[revenue_col].sum() if revenue_col and revenue_col in df.columns else 0
-        coste = df[cost_col].sum() if cost_col and cost_col in df.columns else 0
-        beneficio = ingresos - coste
-        margen = (beneficio / ingresos * 100) if ingresos else 0
-        unidades = int(df[units_col].sum()) if units_col and units_col in df.columns else None
+        # --- TAB 1: RESUMEN ---
+        with tab1:
+            st.subheader("📄 Vista previa de los datos (limpios)")
+            st.dataframe(df.head(40))
 
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("💰 Ingresos totales", format_value(ingresos, True))
-        col2.metric("📉 Costes totales", format_value(coste, True))
-        col3.metric("📈 Margen (%)", f"{margen:.2f}%")
-        col4.metric("📦 Unidades vendidas", format_value(unidades or 0))
+            st.subheader("📊 Resumen ejecutivo")
+            ingresos = df[revenue_col].sum() if revenue_col else 0
+            coste = df[cost_col].sum() if cost_col else 0
+            beneficio = ingresos - coste
+            margen = (beneficio / ingresos * 100) if ingresos else 0
+            unidades = int(df[units_col].sum()) if units_col else 0
 
-        if date_col:
-            st.info(f"**Periodo analizado:** {df[date_col].min().date()} → {df[date_col].max().date()}")
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("💰 Ingresos", format_value(ingresos, True))
+            col2.metric("📉 Costes", format_value(coste, True))
+            col3.metric("📈 Margen (%)", f"{margen:.2f}%")
+            col4.metric("📦 Unidades", format_value(unidades))
 
-        # ==============================
-        # 🏆 TOP PRODUCTOS
-        # ==============================
-        if product_col and revenue_col:
-            st.subheader(f"🏆 Top {top_n_productos} productos por ingresos")
-            top_prod = (
-                df.groupby(product_col)[revenue_col]
-                .sum()
-                .sort_values(ascending=False)
-                .head(top_n_productos)
-            )
-            st.bar_chart(top_prod)
+            if date_col:
+                st.info(f"**Periodo analizado:** {df[date_col].min().date()} → {df[date_col].max().date()}")
 
-        # ==============================
-        # 📈 RESUMEN GRÁFICO
-        # ==============================
-        st.subheader("📈 Resumen gráfico")
+        # --- TAB 2: GRÁFICOS ---
+        with tab2:
+            st.subheader("🏆 Top productos por ingresos")
+            if product_col and revenue_col:
+                top_prod = (
+                    df.groupby(product_col)[revenue_col]
+                    .sum()
+                    .sort_values(ascending=False)
+                    .head(top_n_productos)
+                )
+                st.bar_chart(top_prod)
 
-        # Pie chart
-        if product_col and revenue_col:
+            st.subheader("📈 Participación de ingresos")
             try:
                 pie_df = (
                     df.groupby(product_col)[revenue_col]
@@ -166,48 +160,21 @@ if archivo:
                 ).reset_index()
                 pie_df['porcentaje'] = pie_df[revenue_col] / pie_df[revenue_col].sum() * 100
                 fig_pie = px.pie(pie_df, names=product_col, values=revenue_col,
-                                 title=f"Participación de ingresos (Top {top_n_productos})",
-                                 hover_data={'porcentaje':':.2f'})
+                                 title=f"Top {top_n_productos} productos", hover_data={'porcentaje':':.2f'})
                 st.plotly_chart(fig_pie, use_container_width=True)
             except Exception as e:
-                st.warning(f"No se pudo generar el gráfico de participación por producto: {e}")
+                st.warning(f"No se pudo generar el gráfico: {e}")
 
-        # Margen en el tiempo
-        if date_col and revenue_col and cost_col and cost_col in df.columns:
-            try:
-                st.subheader("📉 Evolución del margen (por periodo)")
-                df_margin = df[[date_col, revenue_col, cost_col]].dropna()
-                df_margin = df_margin.set_index(date_col).resample("M").sum().reset_index()
-                df_margin['margen_abs'] = df_margin[revenue_col] - df_margin[cost_col]
-                df_margin['margen_pct'] = df_margin['margen_abs'] / df_margin[revenue_col] * 100
-                df_margin['margen_pct'] = df_margin['margen_pct'].fillna(0)
-                fig_margin = px.line(df_margin, x=date_col, y='margen_pct',
-                                     title="Margen % por periodo (mensual)",
-                                     labels={'margen_pct':'Margen (%)', date_col:'Fecha'})
-                fig_margin.update_traces(mode='lines+markers')
-                st.plotly_chart(fig_margin, use_container_width=True)
-            except Exception as e:
-                st.warning(f"No se pudo generar el gráfico del margen: {e}")
-
-        # Evolución de ingresos
-        if date_col and revenue_col:
-            st.subheader("⏳ Evolución de ingresos (resample dinámico)")
-            time_range = df[date_col].max() - df[date_col].min()
-            if time_range.days < 90:
-                resample_rule = 'D'
-            elif time_range.days < 365 * 2:
-                resample_rule = 'M'
-            else:
-                resample_rule = 'Q'
-
-            df_temp = (
+            if date_col and revenue_col:
+                st.subheader("📅 Evolución de ingresos")
+                df_temp = (
                 df[[date_col, revenue_col]]
-                .dropna()
-                .set_index(date_col)
-                .resample(resample_rule)
-                .sum()
-            )
-            st.line_chart(df_temp)
+                    .dropna()
+                    .set_index(date_col)
+                    .resample("M")
+                    .sum()
+                )
+                st.line_chart(df_temp)
 
         # ==============================
         # ⚠️ DETECCIÓN DE ANOMALÍAS
@@ -222,49 +189,39 @@ if archivo:
                     cols_show = [c for c in [date_col, product_col, revenue_col] if c and c in outliers.columns]
                     st.dataframe(outliers[cols_show].head(50))
 
-        # ==============================
-        # 🤖 INFORME DE IA (GPT-5)
-        # ==============================
-        if api_key and st.button("🤖 Generar informe con IA (GPT-5)"):
-            try:
-                client = OpenAI(api_key=api_key)
-                resumen = df.describe(include="all").to_string()
-                muestra = df.head(50).to_string()
-                prompt = f"""
-                Eres un analista de datos experto. Analiza la siguiente información de negocio:
+        # --- TAB 3: INFORME IA ---
+        with tab3:
+            st.subheader("🧾 Informe generado por IA (GPT-5)")
+            if api_key and st.button("🤖 Generar informe con IA"):
+                try:
+                    client = OpenAI(api_key=api_key)
+                    resumen = df.describe(include="all").to_string()
+                    muestra = df.head(50).to_string()
+                    prompt = f"""
+                    Eres un analista de datos experto. Analiza la siguiente información de negocio:
 
-                - Detecta tendencias y estacionalidades.
-                - Identifica productos o periodos más rentables.
-                - Señala posibles riesgos o anomalías.
-                - Propón 3 recomendaciones concretas para mejorar ventas o eficiencia.
+                    - Detecta tendencias y estacionalidades.
+                    - Identifica productos o periodos más rentables.
+                    - Señala posibles riesgos o anomalías.
+                    - Propón 3 recomendaciones concretas para mejorar ventas o eficiencia.
 
-                Resumen estadístico:
-                {resumen}
+                    Resumen estadístico:
+                    {resumen}
 
-                Muestra:
-                {muestra}
-                """
-                with st.spinner("Analizando con GPT-5..."):
-                    response = client.chat.completions.create(
-                        model=MODEL_NAME,
-                        messages=[{"role": "user", "content": prompt}],
-                    )
-                    analysis = response.choices[0].message.content
+                    Muestra:
+                    {muestra}
+                    """
+                    with st.spinner("Analizando con GPT-5..."):
+                        response = client.chat.completions.create(
+                            model=MODEL_NAME,
+                            messages=[{"role": "user", "content": prompt}],
+                        )
+                        analysis = response.choices[0].message.content
 
-                st.subheader("🧾 Informe de IA")
-                st.markdown(analysis)
-                st.download_button(
-                    "📥 Descargar informe (TXT)",
-                    data=analysis.encode("utf-8"),
-                    file_name="informe_smaport_IA.txt",
-                    mime="text/plain",
-                )
-
-            except Exception as e:
-                st.error(f"❌ Error al conectar con OpenAI: {e}")
-
-    except Exception as e:
-        st.error(f"❌ Error al procesar el archivo: {e}")
+                    st.success("✅ Informe generado con éxito")
+                    st.markdown(analysis)
+                except Exception as e:
+                    st.error(f"❌ Error al conectar con OpenAI: {e}")
 
 # ==============================
 # 🪶 FOOTER — CRÉDITO DISCRETO
