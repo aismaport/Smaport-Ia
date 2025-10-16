@@ -27,11 +27,10 @@ st.markdown("""
 # ==============================
 # 🧭 SIDEBAR
 # ==============================
-st.sidebar.header("Configuración")
+st.sidebar.header("Configuración de análisis")
 
 MODEL_NAME = "gpt-5"  
 
-st.sidebar.markdown("### Configuración de análisis")
 st.sidebar.write("Ajusta los parámetros antes de procesar los datos:")
 st.sidebar.subheader("Opciones de visualización")
 top_n_productos = st.sidebar.slider("Top N productos", 3, 20, 5)
@@ -118,7 +117,12 @@ if archivo:
         # ==============================
         st.subheader("📄 Vista previa de los datos (limpios)")
         st.dataframe(df.head(40))
-
+        st.markdown("""
+    <div style="background-color:#F9FAFB; padding:20px; border-radius:10px; margin-top:20px;">
+        <h4>📄 Vista previa de los datos (limpios)</h4>
+    </div>
+""", unsafe_allow_html=True)
+st.dataframe(df.head(40))
         # ==============================
         # 📊 RESUMEN EJECUTIVO
         # ==============================
