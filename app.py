@@ -118,11 +118,11 @@ if archivo:
         st.subheader("📄 Vista previa de los datos (limpios)")
         st.dataframe(df.head(40))
         st.markdown("""
-    <div style="background-color:#F9FAFB; padding:20px; border-radius:10px; margin-top:20px;">
-        <h4>📄 Vista previa de los datos (limpios)</h4>
-    </div>
-""", unsafe_allow_html=True)
-st.dataframe(df.head(40))
+            <div style="background-color:#F9FAFB; padding:20px; border-radius:10px; margin-top:20px;">
+                <h4>📄 Vista previa de los datos (limpios)</h4>
+            </div>
+        """, unsafe_allow_html=True)
+        st.dataframe(df.head(40))
         # ==============================
         # 📊 RESUMEN EJECUTIVO
         # ==============================
