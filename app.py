@@ -17,8 +17,12 @@ if not api_key:
 # ==============================
 # 📘 CONFIGURACIÓN DE LA APP
 # ==============================
-st.set_page_config(page_title="Smaport IA", page_icon="📊", layout="wide")
-st.title("📊 Smaport IA — Analista de Negocio Inteligente")
+st.markdown("""
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color:#4A90E2;">📊 Smaport IA</h1>
+        <h3 style="color:gray;">Analista de negocio inteligente impulsado por IA</h3>
+    </div>
+""", unsafe_allow_html=True)
 
 # ==============================
 # 🧭 SIDEBAR
