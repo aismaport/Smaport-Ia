@@ -115,7 +115,6 @@ if archivo:
         # ==============================
         # 👀 VISTA PREVIA
         # ==============================
-        st.subheader("📄 Vista previa de los datos (limpios)")
         st.dataframe(df.head(40))
         st.markdown("""
             <div style="background-color:#F9FAFB; padding:20px; border-radius:10px; margin-top:20px;">
