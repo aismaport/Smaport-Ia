@@ -38,11 +38,9 @@ top_n_productos = st.sidebar.slider("Top N productos", 3, 20, 5)
 std_multiplier = st.sidebar.slider(
     "Umbral de anomalías (σ)", 1.5, 4.0, 2.0, 0.1,
     help="Cuántas desviaciones estándar -> marcar anomalía"
+)
 st.sidebar.markdown("---")
 st.sidebar.markdown("<p style='text-align:center; color:gray;'>Smaport IA © 2025</p>", unsafe_allow_html=True)
-
-)
-
 # ==============================
 # 🔧 FUNCIONES AUXILIARES
 # ==============================
