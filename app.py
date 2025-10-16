@@ -232,6 +232,6 @@ if archivo:
             <p style="text-align:center; color:gray; font-size:13px;">
             Desarrollado por <strong style="color:#4A90E2;">Smaport IA</strong> · 2025
             </p>
-            """,
-            ,unsafe_allow_html=True
-        )
+            """
+            unsafe_allow_html=True,
+            )
