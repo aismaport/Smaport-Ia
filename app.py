@@ -31,14 +31,16 @@ st.sidebar.header("Configuración")
 
 MODEL_NAME = "gpt-5"  
 
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/5113/5113507.png", width=120)
-st.sidebar.markdown("### ⚙️ Configuración de análisis")
+st.sidebar.markdown("### Configuración de análisis")
 st.sidebar.write("Ajusta los parámetros antes de procesar los datos:")
 st.sidebar.subheader("Opciones de visualización")
 top_n_productos = st.sidebar.slider("Top N productos", 3, 20, 5)
 std_multiplier = st.sidebar.slider(
     "Umbral de anomalías (σ)", 1.5, 4.0, 2.0, 0.1,
     help="Cuántas desviaciones estándar -> marcar anomalía"
+st.sidebar.markdown("---")
+st.sidebar.markdown("<p style='text-align:center; color:gray;'>Smaport IA © 2025</p>", unsafe_allow_html=True)
+
 )
 
 # ==============================
