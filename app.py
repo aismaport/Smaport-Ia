@@ -14,6 +14,15 @@ api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
     st.warning("⚠️ No se encontró la clave API. Asegúrate de definir OPENAI_API_KEY como Secret en GitHub o en Streamlit Cloud.")
 
+# Configuración de la página
+import streamlit as st
+
+st.set_page_config(
+    page_title="Smaport IA",
+    page_icon="🤖",
+    layout="wide"  
+)
+
 # ==============================
 # 📘 CONFIGURACIÓN DE LA APP
 # ==============================
