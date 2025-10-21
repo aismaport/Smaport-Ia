@@ -5,6 +5,7 @@ import plotly.express as px
 from openai import OpenAI
 import io
 import os
+import textwrap
 
 # ==============================
 # 🔐 CARGA DE API KEY DESDE GITHUB SECRETS (variables de entorno)
@@ -197,7 +198,7 @@ if archivo:
                     client = OpenAI(api_key=api_key)
                     resumen = df.describe(include="all").to_string()
                     muestra = df.head(50).to_string()
-                    prompt = f"""
+                    prompt = textwrap.dedent(f"""
                     Eres un analista de datos experto. Analiza la siguiente información de negocio:
 
                     - Detecta tendencias y estacionalidades.
@@ -210,7 +211,7 @@ if archivo:
 
                     Muestra:
                     {muestra}
-                    """
+                    """)
                     with st.spinner("Analizando con GPT-5..."):
                         response = client.chat.completions.create(
                             model=MODEL_NAME,
