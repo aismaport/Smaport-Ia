@@ -228,7 +228,7 @@ if archivo:
                     st.warning("Margen bajo. Conviene revisar estructura de costes o precios.")
 
             if crecimiento != "N/A" and crecimiento != "0.00%":
-            st.markdown(f"📈 **Crecimiento acumulado:** {crecimiento}")
+                st.markdown(f"📈 **Crecimiento acumulado:** {crecimiento}")
 
             # indicadores adicionales
             media_ingresos = df[revenue_col].mean() if revenue_col else 0
