@@ -1,4 +1,3 @@
-# app.py
 import os
 import io
 import textwrap
@@ -113,13 +112,36 @@ api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
     st.sidebar.warning("⚠️ No se encontró OPENAI_API_KEY en variables de entorno. Añádela en GitHub Secrets o en el entorno de despliegue.")
 
+with st.expander("ℹ️ Acerca de Smaport IA"):
+    st.markdown("""
+    **Smaport IA** es un asistente de análisis empresarial que transforma tus datos
+    en insights automáticos mediante IA.
+
+    - 📊 Analiza ventas, inventario o gastos.
+    - 🤖 Genera informes ejecutivos con GPT-5.
+    - 🧠 Detecta tendencias, anomalías y oportunidades.
+
+    **Cómo usarlo:**
+    1. Sube tu archivo CSV o Excel.
+    2. Revisa los gráficos interactivos.
+    3. Genera un informe con IA para tus decisiones.
+    """)
+    
 # ==============================
 # UPLOAD
 # ==============================
 st.markdown("---")
 st.markdown("### 📂 Subir datos")
 archivo = st.file_uploader("Sube un CSV o Excel (ventas, inventario, etc.)", type=["csv", "xlsx"])
-
+if not archivo:
+    if st.button("🧪 Cargar datos de ejemplo"):
+        df = pd.DataFrame({
+            "Fecha": pd.date_range("2024-01-01", periods=90),
+            "Producto": ["A", "B", "C"] * 30,
+            "Ventas": (pd.Series(range(90)) * 1.5 + 500).sample(90).values,
+            "Coste": (pd.Series(range(90)) * 1.2 + 300).sample(90).values
+        })
+        st.success("Datos de ejemplo cargados correctamente.")
 if archivo:
     try:
         # intento lectura robusta
@@ -194,6 +216,19 @@ if archivo:
             beneficio = ingresos - coste
             margen = (beneficio / ingresos * 100) if ingresos else 0
             unidades = int(df[units_col].sum()) if units_col and units_col in df.columns else 0
+
+            st.markdown("### 💡 Insights destacados")
+
+if ingresos > 0:
+    if margen > 30:
+        st.success("Excelente margen operativo. La rentabilidad global es sólida.")
+    elif margen > 10:
+        st.info("Margen correcto, aunque podría optimizarse revisando costes.")
+    else:
+        st.warning("Margen bajo. Conviene revisar estructura de costes o precios.")
+
+if crecimiento != "N/A" and crecimiento != "0.00%":
+    st.markdown(f"📈 **Crecimiento acumulado:** {crecimiento}")
 
             # indicadores adicionales
             media_ingresos = df[revenue_col].mean() if revenue_col else 0
@@ -278,7 +313,7 @@ if archivo:
         # --- TAB 3: INFORME IA ---
         with tab3:
             st.subheader("🤖 Generar informe con IA")
-            st.markdown("El informe se generará a partir del resumen estadístico y una muestra de datos. (Se requiere clave de OpenAI)")
+            st.markdown("El informe se generará a partir del resumen estadístico y una muestra de datos.)
 
             if api_key:
                 if st.button("🧾 Generar informe (GPT-5)"):
