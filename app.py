@@ -219,16 +219,16 @@ if archivo:
 
             st.markdown("### 💡 Insights destacados")
 
-if ingresos > 0:
-    if margen > 30:
-        st.success("Excelente margen operativo. La rentabilidad global es sólida.")
-    elif margen > 10:
-        st.info("Margen correcto, aunque podría optimizarse revisando costes.")
-    else:
-        st.warning("Margen bajo. Conviene revisar estructura de costes o precios.")
+            if ingresos > 0:
+                if margen > 30:
+                  st.success("Excelente margen operativo. La rentabilidad global es sólida.")
+                elif margen > 10:
+                    st.info("Margen correcto, aunque podría optimizarse revisando costes.")
+                else:
+                    st.warning("Margen bajo. Conviene revisar estructura de costes o precios.")
 
-if crecimiento != "N/A" and crecimiento != "0.00%":
-    st.markdown(f"📈 **Crecimiento acumulado:** {crecimiento}")
+            if crecimiento != "N/A" and crecimiento != "0.00%":
+            st.markdown(f"📈 **Crecimiento acumulado:** {crecimiento}")
 
             # indicadores adicionales
             media_ingresos = df[revenue_col].mean() if revenue_col else 0
