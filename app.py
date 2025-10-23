@@ -313,7 +313,7 @@ if archivo:
         # --- TAB 3: INFORME IA ---
         with tab3:
             st.subheader("🤖 Generar informe con IA")
-            st.markdown("El informe se generará a partir del resumen estadístico y una muestra de datos.)
+            st.markdown("El informe se generará a partir del resumen estadístico y una muestra de datos.")
 
             if api_key:
                 if st.button("🧾 Generar informe (GPT-5)"):
