@@ -296,7 +296,7 @@ if archivo:
             try:
                 df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
             except Exception:
-            pass
+                pass
 
             comp = df[[date_col, revenue_col, cost_col]].dropna(subset=[date_col, revenue_col, cost_col])
         if comp.empty:
