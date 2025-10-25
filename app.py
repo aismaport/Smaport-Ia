@@ -12,35 +12,52 @@ from openai import OpenAI
 # CONFIGURACIÓN BÁSICA
 # ==============================
 st.set_page_config(
-    page_title="Smaport IA Premium",
+    page_title="Smaport IA",
     page_icon="📊",
     layout="wide",
 )
 
 # ==============================
-# CSS PREMIUM
+# CSS GLOBAL MEJORADO
 # ==============================
 st.markdown("""
 <style>
-.stApp { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
+/* Fondo y contenedores */
+.stApp { background-color: #f8f9fb; font-family: 'Segoe UI', sans-serif; }
 .block-container { padding: 2rem 2rem; }
-h1 { color: #1a2b49; font-size:2.8rem; font-weight:700; }
-h2 { color: #0078ff; font-weight:600; }
-h3 { color: #6b6f76; font-weight:500; }
+
+/* Encabezados */
+h1 { color: #1a2b49; font-size: 2.5rem; font-weight: 700; }
+h2 { color: #0078ff; font-weight: 600; }
+h3 { color: #6b6f76; font-weight: 500; }
+
+/* Tarjetas */
 .card {
     background: #ffffff;
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 20px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 }
 .metric-card {
-    background: #ffffff;
+    background: #0078ff;
+    color: white;
     border-radius: 12px;
     padding: 15px;
     text-align:center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    font-weight:600;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    margin-bottom: 12px;
 }
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background-color: #ffffff;
+    border-radius: 0 12px 12px 0;
+    padding: 20px;
+}
+
+/* Botones */
 .stButton>button {
     background-color: #0078ff;
     color: #ffffff;
@@ -49,36 +66,46 @@ h3 { color: #6b6f76; font-weight:500; }
     padding: 8px 20px;
     transition: 0.2s;
 }
-.stButton>button:hover { background-color: #005fcc; }
+.stButton>button:hover {
+    background-color: #005fcc;
+    color: #ffffff;
+}
+
+/* Footer */
 footer { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==============================
-# CABECERA PREMIUM
+# CABECERA
 # ==============================
 st.markdown("""
-<div style="text-align:center; padding:40px 0;">
-  <h1>📊 Smaport IA Premium</h1>
-  <h3>Tu asistente de negocio inteligente con dashboard visual</h3>
-  <p style="color:#5b6470; font-size:16px; max-width:600px; margin:auto;">
-    Analiza tus datos de ventas, inventario y gastos, y genera informes automáticos con IA y visualizaciones interactivas.
-  </p>
-</div>
+<header style="text-align:center; margin-bottom:1.5rem;">
+  <h1 style="color:#1a2b49;">📊 Smaport IA</h1>
+  <h3 style="color:#6b6f76; font-weight:400;">Análisis automático de negocio con IA</h3>
+</header>
 """, unsafe_allow_html=True)
 
 # ==============================
-# SIDEBAR
+# SIDEBAR - Configuración
 # ==============================
-st.sidebar.header("⚙️ Configuración de análisis")
+st.sidebar.header("⚙️ Panel de configuración")
 MODEL_NAME = "gpt-5"
-top_n_productos = st.sidebar.slider("🔝 Top productos", 3, 20, 5)
-std_multiplier = st.sidebar.slider("📉 Umbral de anomalías", 1.5, 4.0, 2.0, 0.1)
+
+st.sidebar.markdown("Ajusta tus preferencias de análisis:")
+
+top_n_productos = st.sidebar.slider("🔝 Mostrar top productos", 3, 20, 5)
+std_multiplier = st.sidebar.slider(
+    "📉 Sensibilidad de detección de anomalías",
+    1.5, 4.0, 2.0, 0.1,
+    help="Controla qué tan estricta es la detección de valores atípicos."
+)
+
 st.sidebar.markdown("---")
 st.sidebar.markdown("<p style='text-align:center; color:gray;'>Smaport IA © 2025</p>", unsafe_allow_html=True)
 
 # ==============================
-# FUNCIONES
+# UTILIDADES
 # ==============================
 def find_column(df, possible_names):
     for col in df.columns:
@@ -112,7 +139,7 @@ def format_value(val, currency=False):
 # ==============================
 api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
-    st.sidebar.warning("⚠️ No se encontró OPENAI_API_KEY en variables de entorno.")
+    st.sidebar.warning("⚠️ No se encontró OPENAI_API_KEY en variables de entorno. Añádela en GitHub Secrets o en el entorno de despliegue.")
 
 with st.expander("ℹ️ Acerca de Smaport IA"):
     st.markdown("""
@@ -130,13 +157,11 @@ with st.expander("ℹ️ Acerca de Smaport IA"):
     """)
 
 # ==============================
-# UPLOAD DE DATOS
+# UPLOAD
 # ==============================
-st.markdown('<div class="card">', unsafe_allow_html=True)
+st.markdown("---")
 st.markdown("### 📂 Subir datos")
-archivo = st.file_uploader("CSV o Excel", type=["csv", "xlsx"])
-st.markdown('</div>', unsafe_allow_html=True)
-
+archivo = st.file_uploader("Sube un CSV o Excel (ventas, inventario, etc.)", type=["csv", "xlsx"])
 if not archivo:
     if st.button("🧪 Cargar datos de ejemplo"):
         df = pd.DataFrame({
@@ -147,20 +172,20 @@ if not archivo:
         })
         st.success("Datos de ejemplo cargados correctamente.")
 
-# ==============================
-# PROCESAMIENTO COMPLETO DE DATOS
-# ==============================
-if archivo or 'df' in locals():
+if archivo:
     try:
-        if archivo:
-            if archivo.name.lower().endswith(".csv"):
-                try:
-                    df = pd.read_csv(archivo, encoding="utf-8", engine="python")
-                except Exception:
-                    archivo.seek(0)
-                    df = pd.read_csv(archivo, encoding="latin1", engine="python")
-            else:
-                df = pd.read_excel(archivo, engine="openpyxl")
+        if archivo.name.lower().endswith(".csv"):
+            try:
+                df = pd.read_csv(archivo, encoding="utf-8", engine="python")
+            except Exception:
+                archivo.seek(0)
+                df = pd.read_csv(archivo, encoding="latin1", engine="python")
+        else:
+            df = pd.read_excel(archivo, engine="openpyxl")
+
+        if df is None or df.empty:
+            st.error("El archivo está vacío o no se pudo leer.")
+            st.stop()
 
         df = df.replace([float("inf"), float("-inf")], pd.NA).dropna(how="all")
         df.columns = df.columns.map(str).str.strip()
@@ -185,77 +210,84 @@ if archivo or 'df' in locals():
         # ==============================
         # FILTROS
         # ==============================
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("🔎 Filtros")
+        st.markdown("---")
+        st.markdown("### 🔎 Filtros")
         filtro_prod = None
         if product_col:
             productos = df[product_col].astype(str).fillna("N/A").unique().tolist()
             productos = sorted(productos)
             filtro_prod = st.selectbox("Filtrar por producto (opcional)", options=["Todo"] + productos)
-            if filtro_prod != "Todo":
+            if filtro_prod and filtro_prod != "Todo":
                 df = df[df[product_col].astype(str) == filtro_prod]
+
         if date_col:
             min_date = df[date_col].min().date()
             max_date = df[date_col].max().date()
             inicio, fin = st.date_input("Rango de fechas (opcional)", value=(min_date, max_date))
-            df = df[(df[date_col].dt.date >= inicio) & (df[date_col].dt.date <= fin)]
-        st.markdown('</div>', unsafe_allow_html=True)
+            if inicio and fin:
+                df = df[(df[date_col].dt.date >= inicio) & (df[date_col].dt.date <= fin)]
 
         # ==============================
-        # DASHBOARD METRICAS PREMIUM
+        # MÉTRICAS PRINCIPALES
         # ==============================
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("💡 Métricas clave")
         ingresos = df[revenue_col].sum() if revenue_col else 0
         coste = df[cost_col].sum() if cost_col else 0
         beneficio = ingresos - coste
         margen = (beneficio / ingresos * 100) if ingresos else 0
         unidades = int(df[units_col].sum()) if units_col else 0
-        df_sorted = df.sort_values(date_col) if date_col else df
-        crecimiento = ((df_sorted[revenue_col].iloc[-1]-df_sorted[revenue_col].iloc[0])/df_sorted[revenue_col].iloc[0]*100) if revenue_col else 0
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.markdown(f'<div class="metric-card">💰<br><b>{format_value(ingresos, True)}</b><br>Ingresos totales</div>', unsafe_allow_html=True)
-        c2.markdown(f'<div class="metric-card">📉<br><b>{format_value(coste, True)}</b><br>Costes totales</div>', unsafe_allow_html=True)
-        c3.markdown(f'<div class="metric-card">📈<br><b>{margen:.2f}%</b><br>Margen</div>', unsafe_allow_html=True)
-        c4.markdown(f'<div class="metric-card">📦<br><b>{format_value(unidades)}</b><br>Unidades vendidas</div>', unsafe_allow_html=True)
+        # Crecimiento
+        crecimiento = 0
+        if date_col and revenue_col and len(df) > 1:
+            df_sorted = df.sort_values(date_col)
+            first = df_sorted[revenue_col].iloc[0]
+            last = df_sorted[revenue_col].iloc[-1]
+            if first != 0:
+                crecimiento = ((last - first) / first * 100)
 
-        st.markdown("</div>", unsafe_allow_html=True)
+        producto_top = df.groupby(product_col)[revenue_col].sum().idxmax() if product_col else "N/A"
 
         # ==============================
-        # TABS: RESUMEN, GRAFICOS, INFORME IA
+        # TABS
         # ==============================
         tab1, tab2, tab3 = st.tabs(["📈 Resumen", "📊 Gráficos", "🤖 Informe IA"])
 
         # --- TAB 1: RESUMEN ---
         with tab1:
             st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("📄 Vista previa de los datos")
+            st.subheader("📄 Vista previa de los datos (limpios)")
             st.dataframe(df.head(50), use_container_width=True)
 
-            st.markdown("### 💡 Insights destacados")
-            if ingresos > 0:
-                if margen > 30:
-                    st.success("Excelente margen operativo. Rentabilidad sólida.")
-                elif margen > 10:
-                    st.info("Margen correcto, revisar costes si es posible.")
-                else:
-                    st.warning("Margen bajo. Revisa precios o estructura de costes.")
-            if crecimiento != 0:
-                st.markdown(f"📈 **Crecimiento acumulado:** {crecimiento:.2f}%")
-            
-            producto_top = df.groupby(product_col)[revenue_col].sum().idxmax() if product_col else "N/A"
-            col1, col2, col3 = st.columns(3)
-            col1.markdown(f"**Ingreso medio:** {format_value(df[revenue_col].mean(), True) if revenue_col else 'N/A'}")
-            col2.markdown(f"**Producto más rentable:** {producto_top}")
-            col3.markdown(f"**Crecimiento (inicio→fin):** {crecimiento:.2f}%")
+            # Métricas en tarjetas
+            col1, col2, col3, col4 = st.columns(4)
+            col1.markdown(f'<div class="metric-card">💰<br><b>{format_value(ingresos, True)}</b><br>Ingresos</div>', unsafe_allow_html=True)
+            col2.markdown(f'<div class="metric-card">📉<br><b>{format_value(coste, True)}</b><br>Costes</div>', unsafe_allow_html=True)
+
+            # Tarjeta de margen con color
+            if margen > 30:
+                color_margen = "#28a745"
+            elif margen > 10:
+                color_margen = "#ffc107"
+            else:
+                color_margen = "#dc3545"
+            col3.markdown(f'<div class="metric-card" style="background-color:{color_margen};">{margen:.2f}%<br>Margen</div>', unsafe_allow_html=True)
+
+            col4.markdown(f'<div class="metric-card">📦<br><b>{format_value(unidades)}</b><br>Unidades</div>', unsafe_allow_html=True)
+
+            # Crecimiento con alertas
+            if crecimiento < 0:
+                st.warning(f"⚠️ Crecimiento negativo: {crecimiento:.2f}%")
+            elif crecimiento < 5:
+                st.info(f"Crecimiento bajo: {crecimiento:.2f}%")
+            else:
+                st.success(f"Crecimiento saludable: {crecimiento:.2f}%")
+
             st.markdown("</div>", unsafe_allow_html=True)
 
         # --- TAB 2: GRAFICOS ---
         with tab2:
             st.subheader("📊 Gráficos interactivos")
             if date_col and revenue_col and cost_col:
-                st.markdown("**Evolución: Ingresos vs Costes**")
                 comp = df[[date_col, revenue_col, cost_col]].dropna()
                 comp = comp.set_index(date_col).resample("M").sum().reset_index()
                 fig = px.line(comp, x=date_col, y=[revenue_col, cost_col],
@@ -263,19 +295,19 @@ if archivo or 'df' in locals():
                 st.plotly_chart(fig, use_container_width=True)
 
             if product_col and revenue_col:
-                st.markdown(f"**Top {top_n_productos} productos por ingresos**")
                 top_prod = df.groupby(product_col)[revenue_col].sum().sort_values(ascending=False).head(top_n_productos)
                 fig2 = px.bar(top_prod.reset_index(), x=product_col, y=revenue_col,
                               labels={revenue_col: "Ingresos", product_col: "Producto"})
                 st.plotly_chart(fig2, use_container_width=True)
 
+            # Evolución resample dinámico
             if revenue_col and date_col:
-                st.markdown("**Evolución de ingresos (resample dinámico)**")
                 time_range = df[date_col].max() - df[date_col].min()
                 rule = "D" if time_range.days < 90 else "M" if time_range.days < 730 else "Q"
                 temp = df.set_index(date_col)[revenue_col].resample(rule).sum().fillna(0)
                 st.line_chart(temp)
 
+            # Posibles anomalías
             if revenue_col:
                 datos = df[revenue_col].dropna()
                 if len(datos) > 2:
@@ -284,8 +316,8 @@ if archivo or 'df' in locals():
                     down = mean - std_multiplier * std
                     outliers = df[(df[revenue_col] > up) | (df[revenue_col] < down)]
                     if not outliers.empty:
-                        st.markdown("**📛 Posibles anomalías detectadas**")
-                        st.dataframe(outliers[[date_col, product_col, revenue_col]].head(20))
+                        st.markdown("### 📛 Anomalías detectadas")
+                        st.dataframe(outliers[[date_col, product_col, revenue_col]].head(20), use_container_width=True)
 
         # --- TAB 3: INFORME IA ---
         with tab3:
