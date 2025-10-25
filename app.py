@@ -17,39 +17,54 @@ st.set_page_config(
     layout="wide",
 )
 
-# Tema / CSS neutral y elegante
+# ==============================
+# CSS GLOBAL MEJORADO
+# ==============================
 st.markdown("""
 <style>
-:root {
-  --primary-color: #0078ff;
+/* Fondo y contenedores */
+.stApp { background-color: #f8f9fb; font-family: 'Segoe UI', sans-serif; }
+.block-container { padding: 2rem 2rem; }
+
+/* Encabezados */
+h1 { color: #1a2b49; font-size: 2.5rem; font-weight: 700; }
+h2 { color: #0078ff; font-weight: 600; }
+h3 { color: #6b6f76; font-weight: 500; }
+
+/* Tarjetas */
+.card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 }
-h1, h2, h3, h4 { color: var(--primary-color); }
-a { color: var(--primary-color); text-decoration:none; }
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background-color: #ffffff;
+    border-radius: 0 12px 12px 0;
+    padding: 20px;
+}
+
+/* Botones */
+.stButton>button {
+    background-color: #0078ff;
+    color: #ffffff;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 8px 20px;
+    transition: 0.2s;
+}
+.stButton>button:hover {
+    background-color: #005fcc;
+    color: #ffffff;
+}
+
+/* Footer */
+footer { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
-st.markdown(
-    """
-    <style>
-    .stApp { background-color: #f5f6f8; }
-    .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
-    h1 { color: #2b2f36; margin-bottom: 0; }
-    h3 { color: #6b6f76; margin-top: 0.25rem; font-weight: 400; }
-    .card {
-        background: #ffffff;
-        border: 1px solid #e6e9ee;
-        border-radius: 10px;
-        padding: 12px;
-        box-shadow: 0 2px 6px rgba(20,24,31,0.04);
-    }
-    div[data-testid="metric-container"] {
-        background-color: transparent;
-        padding: 0;
-    }
-    .small-muted { color: #7a8088; font-size:13px; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 # Cabecera
 st.markdown("""
@@ -58,7 +73,6 @@ st.markdown("""
   <h3 style="color:#6b6f76; font-weight:400;">Análisis automático de negocio con IA</h3>
 </header>
 """, unsafe_allow_html=True)
-
 
 # ==============================
 # SIDEBAR - Configuración
