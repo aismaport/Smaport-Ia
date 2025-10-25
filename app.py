@@ -341,17 +341,17 @@ if archivo:
             st.plotly_chart(fig, use_container_width=True)
             st.info("Para mostrar Ingresos vs Costes necesitas columnas de fecha, ingresos y costes en el dataset.")
 
-# ==== GRÁFICO: Top productos ====
-    if product_col and revenue_col:
-        top_prod = df.groupby(product_col)[revenue_col].sum().sort_values(ascending=False).head(top_n_productos)
-        fig2 = px.bar(
-            top_prod.reset_index(),
-            x=product_col,
-            y=revenue_col,
-            labels={revenue_col: "Ingresos", product_col: "Producto"},
-            title=f"Top {top_n_productos} productos por ingresos"
-        )
-        st.plotly_chart(fig2, use_container_width=True)
+        # ==== GRÁFICO: Top productos ====
+        if product_col and revenue_col:
+            top_prod = df.groupby(product_col)[revenue_col].sum().sort_values(ascending=False).head(top_n_productos)
+            fig2 = px.bar(
+                top_prod.reset_index(),
+                x=product_col,
+                y=revenue_col,
+                labels={revenue_col: "Ingresos", product_col: "Producto"},
+                title=f"Top {top_n_productos} productos por ingresos"
+            )
+            st.plotly_chart(fig2, use_container_width=True)
     
             # Evolución resample dinámico
             if revenue_col and date_col:
