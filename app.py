@@ -290,19 +290,61 @@ if archivo:
         # --- TAB 2: GRAFICOS ---
         with tab2:
             st.subheader("📊 Gráficos interactivos")
-            if date_col and revenue_col and cost_col:
-                comp = df[[date_col, revenue_col, cost_col]].dropna()
-                comp = comp.set_index(date_col).resample("M").sum().reset_index()
-    
-                # Convertimos a formato long para que px.line funcione correctamente
-                comp_long = comp.melt(id_vars=date_col, value_vars=[revenue_col, cost_col],
-                          var_name="Concepto", value_name="€")
-    
-            fig = px.line(comp_long, x=date_col, y="€", color="Concepto",
-                  labels={date_col: "Fecha", "€": "€", "Concepto": "Concepto"},
-                  title="Evolución: Ingresos vs Costes")
-            st.plotly_chart(fig, use_container_width=True)
+            # ==== GRÁFICO: Ingresos vs Costes (robusto) ====
+if date_col and revenue_col and cost_col and revenue_col in df.columns and cost_col in df.columns:
+    # Asegurar que la columna de fecha es datetime
+    try:
+        df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+    except Exception:
+        pass
 
+    comp = df[[date_col, revenue_col, cost_col]].dropna(subset=[date_col, revenue_col, cost_col])
+    if comp.empty:
+        st.warning("No hay suficientes datos completos para generar el gráfico Ingresos vs Costes.")
+    else:
+        # ordenar por fecha
+        comp = comp.sort_values(by=date_col)
+
+        # resample mensual (si hay suficientes fechas)
+        try:
+            comp = comp.set_index(date_col).resample("M").sum().reset_index()
+        except Exception:
+            # si resample falla (por ejemplo índice no es datetime), lo intentamos sin reindexar
+            comp = comp.copy()
+
+        # asegurarnos de que los nombres usados en melt son listas
+        id_vars = [date_col]
+        value_vars = [revenue_col, cost_col]
+
+        # convertir a formato long (wide -> long) para plotly
+        comp_long = comp.melt(id_vars=id_vars, value_vars=value_vars, var_name="Concepto", value_name="€")
+
+        # si comp_long tiene NaN en valor, quitarlos
+        comp_long = comp_long.dropna(subset=["€"])
+
+        if comp_long.empty:
+            st.warning("Después de procesar los datos no quedan valores para trazar.")
+        else:
+            # forzar el tipo fecha si no lo es
+            try:
+                comp_long[date_col] = pd.to_datetime(comp_long[date_col])
+            except Exception:
+                pass
+
+            # gráfico con Plotly Express, separando por 'Concepto'
+            fig = px.line(
+                comp_long,
+                x=date_col,
+                y="€",
+                color="Concepto",
+                labels={date_col: "Fecha", "€": "€", "Concepto": "Concepto"},
+                title="Evolución: Ingresos vs Costes",
+            )
+            fig.update_layout(hovermode="x unified", legend=dict(title="Concepto"))
+            st.plotly_chart(fig, use_container_width=True)
+else:
+    # Mensaje cuando faltan columnas
+    st.info("Para mostrar Ingresos vs Costes necesitas columnas de fecha, ingresos y costes en el dataset.")
             if product_col and revenue_col:
                 top_prod = df.groupby(product_col)[revenue_col].sum().sort_values(ascending=False).head(top_n_productos)
                 fig2 = px.bar(top_prod.reset_index(), x=product_col, y=revenue_col,
