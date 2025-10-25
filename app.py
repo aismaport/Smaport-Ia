@@ -4,15 +4,15 @@ import textwrap
 
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 import plotly.express as px
-import plotly.graph_objects as go
 from openai import OpenAI
 
 # ==============================
 # CONFIGURACIÓN BÁSICA
 # ==============================
 st.set_page_config(
-    page_title="Smaport IA — Dashboard Premium",
+    page_title="Smaport IA Premium",
     page_icon="📊",
     layout="wide",
 )
@@ -55,7 +55,7 @@ footer { visibility: hidden; }
 """, unsafe_allow_html=True)
 
 # ==============================
-# PORTADA
+# CABECERA PREMIUM
 # ==============================
 st.markdown("""
 <div style="text-align:center; padding:40px 0;">
@@ -66,17 +66,6 @@ st.markdown("""
   </p>
 </div>
 """, unsafe_allow_html=True)
-
-# ==============================
-# EXPANDER GUIA
-# ==============================
-with st.expander("🧭 Cómo funciona Smaport IA Premium"):
-    st.markdown("""
-    1️⃣ **Sube tus datos** (CSV o Excel con ventas, inventario o gastos).  
-    2️⃣ **Filtra y explora** tus métricas clave y gráficos interactivos.  
-    3️⃣ **Genera informes IA** con recomendaciones accionables.  
-    4️⃣ **Descarga o comparte** tu análisis profesional.
-    """)
 
 # ==============================
 # SIDEBAR
@@ -119,10 +108,32 @@ def format_value(val, currency=False):
     return f"{val:,.0f}".replace(",", " ")
 
 # ==============================
-# SUBIDA DE DATOS
+# CARGA DE API KEY
+# ==============================
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    st.sidebar.warning("⚠️ No se encontró OPENAI_API_KEY en variables de entorno.")
+
+with st.expander("ℹ️ Acerca de Smaport IA"):
+    st.markdown("""
+    **Smaport IA** es un asistente de análisis empresarial que transforma tus datos
+    en insights automáticos mediante IA.
+
+    - 📊 Analiza ventas, inventario o gastos.
+    - 🤖 Genera informes ejecutivos con GPT-5.
+    - 🧠 Detecta tendencias, anomalías y oportunidades.
+
+    **Cómo usarlo:**
+    1. Sube tu archivo CSV o Excel.
+    2. Revisa los gráficos interactivos.
+    3. Genera un informe con IA para tus decisiones.
+    """)
+
+# ==============================
+# UPLOAD DE DATOS
 # ==============================
 st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown("### 📂 Subir tus datos")
+st.markdown("### 📂 Subir datos")
 archivo = st.file_uploader("CSV o Excel", type=["csv", "xlsx"])
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -137,15 +148,20 @@ if not archivo:
         st.success("Datos de ejemplo cargados correctamente.")
 
 # ==============================
-# PROCESAMIENTO DE DATOS
+# PROCESAMIENTO COMPLETO DE DATOS
 # ==============================
 if archivo or 'df' in locals():
     try:
         if archivo:
             if archivo.name.lower().endswith(".csv"):
-                df = pd.read_csv(archivo, encoding="utf-8", engine="python")
+                try:
+                    df = pd.read_csv(archivo, encoding="utf-8", engine="python")
+                except Exception:
+                    archivo.seek(0)
+                    df = pd.read_csv(archivo, encoding="latin1", engine="python")
             else:
                 df = pd.read_excel(archivo, engine="openpyxl")
+
         df = df.replace([float("inf"), float("-inf")], pd.NA).dropna(how="all")
         df.columns = df.columns.map(str).str.strip()
         df = df.loc[:, ~df.columns.str.contains("^Unnamed", na=False)]
@@ -165,128 +181,159 @@ if archivo or 'df' in locals():
         if date_col:
             df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
             df = df.dropna(subset=[date_col])
-    except Exception as e:
-        st.error(f"❌ Error procesando el archivo: {e}")
-        st.stop()
 
-    # ==============================
-    # FILTROS
-    # ==============================
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("🔎 Filtros")
-    filtro_prod = None
-    if product_col:
-        productos = df[product_col].astype(str).fillna("N/A").unique().tolist()
-        productos = sorted(productos)
-        filtro_prod = st.selectbox("Filtrar por producto (opcional)", options=["Todo"] + productos)
-        if filtro_prod != "Todo":
-            df = df[df[product_col].astype(str) == filtro_prod]
-    if date_col:
-        min_date = df[date_col].min().date()
-        max_date = df[date_col].max().date()
-        inicio, fin = st.date_input("Rango de fechas (opcional)", value=(min_date, max_date))
-        df = df[(df[date_col].dt.date >= inicio) & (df[date_col].dt.date <= fin)]
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # ==============================
-    # DASHBOARD DE MÉTRICAS PREMIUM
-    # ==============================
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("💡 Métricas clave")
-    ingresos = df[revenue_col].sum() if revenue_col else 0
-    coste = df[cost_col].sum() if cost_col else 0
-    beneficio = ingresos - coste
-    margen = (beneficio / ingresos * 100) if ingresos else 0
-    unidades = int(df[units_col].sum()) if units_col else 0
-    df_sorted = df.sort_values(date_col) if date_col else df
-    crecimiento = ((df_sorted[revenue_col].iloc[-1]-df_sorted[revenue_col].iloc[0])/df_sorted[revenue_col].iloc[0]*100) if revenue_col else 0
-
-    c1, c2, c3, c4 = st.columns(4)
-    c1.markdown(f'<div class="metric-card">💰<br><b>{format_value(ingresos, True)}</b><br>Ingresos totales</div>', unsafe_allow_html=True)
-    c2.markdown(f'<div class="metric-card">📉<br><b>{format_value(coste, True)}</b><br>Costes totales</div>', unsafe_allow_html=True)
-    c3.markdown(f'<div class="metric-card">📈<br><b>{margen:.2f}%</b><br>Margen</div>', unsafe_allow_html=True)
-    c4.markdown(f'<div class="metric-card">📦<br><b>{format_value(unidades)}</b><br>Unidades</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # ==============================
-    # TABS DE GRAFICOS E INFORME
-    # ==============================
-    tab1, tab2, tab3 = st.tabs(["📊 Gráficos", "📈 Evolución", "🤖 Informe IA"])
-
-    # --- TAB 1: GRAFICOS ---
-    with tab1:
+        # ==============================
+        # FILTROS
+        # ==============================
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Top productos por ingresos")
-        if product_col and revenue_col:
-            top_prod = df.groupby(product_col)[revenue_col].sum().sort_values(ascending=False).head(top_n_productos)
-            fig = px.bar(top_prod.reset_index(), x=product_col, y=revenue_col,
-                         labels={revenue_col: "Ingresos", product_col: "Producto"},
-                         color=top_prod.values, color_continuous_scale="Blues")
-            st.plotly_chart(fig, use_container_width=True)
+        st.subheader("🔎 Filtros")
+        filtro_prod = None
+        if product_col:
+            productos = df[product_col].astype(str).fillna("N/A").unique().tolist()
+            productos = sorted(productos)
+            filtro_prod = st.selectbox("Filtrar por producto (opcional)", options=["Todo"] + productos)
+            if filtro_prod != "Todo":
+                df = df[df[product_col].astype(str) == filtro_prod]
+        if date_col:
+            min_date = df[date_col].min().date()
+            max_date = df[date_col].max().date()
+            inicio, fin = st.date_input("Rango de fechas (opcional)", value=(min_date, max_date))
+            df = df[(df[date_col].dt.date >= inicio) & (df[date_col].dt.date <= fin)]
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- TAB 2: EVOLUCIÓN ---
-    with tab2:
+        # ==============================
+        # DASHBOARD METRICAS PREMIUM
+        # ==============================
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Evolución de ingresos y costes")
-        if date_col and revenue_col and cost_col:
-            temp = df.set_index(date_col)[[revenue_col, cost_col]].resample("W").sum()
-            fig2 = go.Figure()
-            fig2.add_trace(go.Scatter(x=temp.index, y=temp[revenue_col], mode='lines+markers', name='Ingresos', line=dict(color='#0078ff')))
-            fig2.add_trace(go.Scatter(x=temp.index, y=temp[cost_col], mode='lines+markers', name='Costes', line=dict(color='#ff5a5f')))
-            fig2.update_layout(legend=dict(y=0.99, x=0.01), hovermode="x unified")
-            st.plotly_chart(fig2, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.subheader("💡 Métricas clave")
+        ingresos = df[revenue_col].sum() if revenue_col else 0
+        coste = df[cost_col].sum() if cost_col else 0
+        beneficio = ingresos - coste
+        margen = (beneficio / ingresos * 100) if ingresos else 0
+        unidades = int(df[units_col].sum()) if units_col else 0
+        df_sorted = df.sort_values(date_col) if date_col else df
+        crecimiento = ((df_sorted[revenue_col].iloc[-1]-df_sorted[revenue_col].iloc[0])/df_sorted[revenue_col].iloc[0]*100) if revenue_col else 0
 
-    # --- TAB 3: INFORME IA ---
-    with tab3:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("Generar informe con IA")
-        api_key = os.getenv("OPENAI_API_KEY")
-        if api_key:
-            if st.button("🧾 Generar informe (GPT-5)"):
-                try:
-                    client = OpenAI(api_key=api_key)
-                    resumen = df.describe(include="all").to_string()
-                    muestra = df.head(50).to_string()
-                    prompt = textwrap.dedent(f"""
-                        Eres un analista de datos experto. Analiza la siguiente información de negocio y responde con apartados claros:
+        c1, c2, c3, c4 = st.columns(4)
+        c1.markdown(f'<div class="metric-card">💰<br><b>{format_value(ingresos, True)}</b><br>Ingresos totales</div>', unsafe_allow_html=True)
+        c2.markdown(f'<div class="metric-card">📉<br><b>{format_value(coste, True)}</b><br>Costes totales</div>', unsafe_allow_html=True)
+        c3.markdown(f'<div class="metric-card">📈<br><b>{margen:.2f}%</b><br>Margen</div>', unsafe_allow_html=True)
+        c4.markdown(f'<div class="metric-card">📦<br><b>{format_value(unidades)}</b><br>Unidades vendidas</div>', unsafe_allow_html=True)
 
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # ==============================
+        # TABS: RESUMEN, GRAFICOS, INFORME IA
+        # ==============================
+        tab1, tab2, tab3 = st.tabs(["📈 Resumen", "📊 Gráficos", "🤖 Informe IA"])
+
+        # --- TAB 1: RESUMEN ---
+        with tab1:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("📄 Vista previa de los datos")
+            st.dataframe(df.head(50), use_container_width=True)
+
+            st.markdown("### 💡 Insights destacados")
+            if ingresos > 0:
+                if margen > 30:
+                    st.success("Excelente margen operativo. Rentabilidad sólida.")
+                elif margen > 10:
+                    st.info("Margen correcto, revisar costes si es posible.")
+                else:
+                    st.warning("Margen bajo. Revisa precios o estructura de costes.")
+            if crecimiento != 0:
+                st.markdown(f"📈 **Crecimiento acumulado:** {crecimiento:.2f}%")
+            
+            producto_top = df.groupby(product_col)[revenue_col].sum().idxmax() if product_col else "N/A"
+            col1, col2, col3 = st.columns(3)
+            col1.markdown(f"**Ingreso medio:** {format_value(df[revenue_col].mean(), True) if revenue_col else 'N/A'}")
+            col2.markdown(f"**Producto más rentable:** {producto_top}")
+            col3.markdown(f"**Crecimiento (inicio→fin):** {crecimiento:.2f}%")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # --- TAB 2: GRAFICOS ---
+        with tab2:
+            st.subheader("📊 Gráficos interactivos")
+            if date_col and revenue_col and cost_col:
+                st.markdown("**Evolución: Ingresos vs Costes**")
+                comp = df[[date_col, revenue_col, cost_col]].dropna()
+                comp = comp.set_index(date_col).resample("M").sum().reset_index()
+                fig = px.line(comp, x=date_col, y=[revenue_col, cost_col],
+                              labels={date_col: "Fecha", "value": "€", "variable": "Concepto"})
+                st.plotly_chart(fig, use_container_width=True)
+
+            if product_col and revenue_col:
+                st.markdown(f"**Top {top_n_productos} productos por ingresos**")
+                top_prod = df.groupby(product_col)[revenue_col].sum().sort_values(ascending=False).head(top_n_productos)
+                fig2 = px.bar(top_prod.reset_index(), x=product_col, y=revenue_col,
+                              labels={revenue_col: "Ingresos", product_col: "Producto"})
+                st.plotly_chart(fig2, use_container_width=True)
+
+            if revenue_col and date_col:
+                st.markdown("**Evolución de ingresos (resample dinámico)**")
+                time_range = df[date_col].max() - df[date_col].min()
+                rule = "D" if time_range.days < 90 else "M" if time_range.days < 730 else "Q"
+                temp = df.set_index(date_col)[revenue_col].resample(rule).sum().fillna(0)
+                st.line_chart(temp)
+
+            if revenue_col:
+                datos = df[revenue_col].dropna()
+                if len(datos) > 2:
+                    mean, std = datos.mean(), datos.std()
+                    up = mean + std_multiplier * std
+                    down = mean - std_multiplier * std
+                    outliers = df[(df[revenue_col] > up) | (df[revenue_col] < down)]
+                    if not outliers.empty:
+                        st.markdown("**📛 Posibles anomalías detectadas**")
+                        st.dataframe(outliers[[date_col, product_col, revenue_col]].head(20))
+
+        # --- TAB 3: INFORME IA ---
+        with tab3:
+            st.subheader("🤖 Generar informe con IA")
+            st.markdown("El informe se generará a partir del resumen estadístico y una muestra de datos.")
+            if api_key:
+                if st.button("🧾 Generar informe (GPT-5)"):
+                    try:
+                        client = OpenAI(api_key=api_key)
+                        resumen = df.describe(include="all").to_string()
+                        muestra = df.head(50).to_string()
+                        prompt = textwrap.dedent(f"""
+                        Eres un analista de datos experto. Analiza la siguiente información y responde con apartados claros:
                         1) Resumen ejecutivo (3-5 frases)
                         2) Tendencias y estacionalidades
                         3) Productos/periodos más y menos rentables
                         4) Riesgos o anomalías detectadas
                         5) 3 recomendaciones accionables y priorizadas
-
                         Resumen estadístico:
                         {resumen}
-
                         Muestra:
                         {muestra}
-                    """)
-                    with st.spinner("Analizando con GPT-5..."):
-                        response = client.chat.completions.create(
-                            model=MODEL_NAME,
-                            messages=[{"role": "user", "content": prompt}],
-                        )
-                        analysis = response.choices[0].message.content
-                    st.success("✅ Informe generado")
-                    st.markdown(analysis)
-                    st.download_button("📥 Descargar informe (TXT)", data=analysis.encode("utf-8"),
-                                       file_name="informe_smaport_ia.txt", mime="text/plain")
-                except Exception as e:
-                    st.error(f"Error al conectar con OpenAI: {e}")
-        else:
-            st.info("No hay clave de OpenAI configurada. Añádela en las Secrets (OPENAI_API_KEY).")
-        st.markdown('</div>', unsafe_allow_html=True)
+                        """)
+                        with st.spinner("Analizando con GPT-5..."):
+                            response = client.chat.completions.create(
+                                model=MODEL_NAME,
+                                messages=[{"role": "user", "content": prompt}],
+                            )
+                            analysis = response.choices[0].message.content
+                        st.success("✅ Informe generado")
+                        st.markdown(analysis)
+                        st.download_button("📥 Descargar informe (TXT)", data=analysis.encode("utf-8"),
+                                           file_name="informe_smaport_ia.txt", mime="text/plain")
+                    except Exception as e:
+                        st.error(f"Error al conectar con OpenAI: {e}")
+            else:
+                st.info("No hay clave de OpenAI configurada. Añádela en las Secrets (OPENAI_API_KEY).")
 
-# ==============================
-# FOOTER PREMIUM
-# ==============================
-st.markdown("""
-<hr style="margin-top:40px; opacity:0.2;">
-<div style="text-align:center; color:#7a8088; font-size:13px;">
-  Desarrollado por <strong>Smaport IA Premium</strong> — Dashboard y análisis inteligente
-</div>
-""", unsafe_allow_html=True)
+        # ==============================
+        # FOOTER PREMIUM
+        # ==============================
+        st.markdown("""
+        <hr style="margin-top:40px; opacity:0.2;">
+        <div style="text-align:center; color:#7a8088; font-size:13px;">
+        Desarrollado por <strong>Smaport IA Premium</strong> — Dashboard y análisis inteligente
+        </div>
+        """, unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error(f"❌ Error al procesar el archivo: {e}")
 
