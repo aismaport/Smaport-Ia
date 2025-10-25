@@ -300,7 +300,7 @@ if archivo:
 
            comp = df[[date_col, revenue_col, cost_col]].dropna(subset=[date_col, revenue_col, cost_col])
 
-    if comp.empty:
+           if comp.empty:
         st.warning("No hay suficientes datos completos para generar el gráfico Ingresos vs Costes.")
     else:
         # ordenar por fecha
