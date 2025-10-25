@@ -307,9 +307,9 @@ if archivo:
                comp = comp.sort_values(by=date_col)
 
         # resample mensual (si hay suficientes fechas)
-                try:
+               try:
                    comp = comp.set_index(date_col).resample("M").sum().reset_index()
-                except Exception:
+               except Exception:
                    comp = comp.copy()
 
         # convertir a formato long (wide -> long)
