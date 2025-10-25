@@ -56,7 +56,7 @@ st.markdown("""
 # ==============================
 
 st.sidebar.header("⚙️ Panel de configuración")
-MODEL_NAME = "gpt-5
+MODEL_NAME = "gpt-5"
 st.sidebar.markdown("Ajusta tus preferencias de análisis:")
 
 top_n_productos = st.sidebar.slider("🔝 Mostrar top productos", 3, 20, 5)
