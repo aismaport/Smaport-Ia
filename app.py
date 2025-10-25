@@ -83,17 +83,14 @@ def find_column(df, possible_names):
 def clean_numeric(series):
     s = series.astype(str).fillna("").str.strip()
     s = s.str.replace(r"[€$%]", "", regex=True)
-    # Detect possible thousands separator and decimal coma heuristics
-    # Remove spaces and non-numeric except . and -
     s = s.str.replace(r"[ ]", "", regex=True)
-    # If there are commas and no dots, treat comma as decimal separator
     has_comma = s.str.contains(",").sum()
     has_dot = s.str.contains("\.").sum()
     if has_comma > 0 and has_dot == 0:
-        s = s.str.replace(".", "", regex=False)  # remove dots (thousands)
-        s = s.str.replace(",", ".", regex=False)  # comma -> dot
+        s = s.str.replace(".", "", regex=False)
+        s = s.str.replace(",", ".", regex=False)
     else:
-        s = s.str.replace(",", "", regex=False)  # remove commas (thousands)
+        s = s.str.replace(",", "", regex=False)
     return pd.to_numeric(s, errors="coerce")
 
 
@@ -106,7 +103,7 @@ def format_value(val, currency=False):
 
 
 # ==============================
-# CARGA DE API KEY (desde ENV / GITHUB SECRETS)
+# CARGA DE API KEY
 # ==============================
 api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
@@ -126,7 +123,7 @@ with st.expander("ℹ️ Acerca de Smaport IA"):
     2. Revisa los gráficos interactivos.
     3. Genera un informe con IA para tus decisiones.
     """)
-    
+
 # ==============================
 # UPLOAD
 # ==============================
@@ -144,7 +141,6 @@ if not archivo:
         st.success("Datos de ejemplo cargados correctamente.")
 if archivo:
     try:
-        # intento lectura robusta
         if archivo.name.lower().endswith(".csv"):
             try:
                 df = pd.read_csv(archivo, encoding="utf-8", engine="python")
@@ -158,19 +154,16 @@ if archivo:
             st.error("El archivo está vacío o no se pudo leer.")
             st.stop()
 
-        # limpieza básica
         df = df.replace([float("inf"), float("-inf")], pd.NA).dropna(how="all")
         df.columns = df.columns.map(str).str.strip()
         df = df.loc[:, ~df.columns.str.contains("^Unnamed", na=False)]
 
-        # detección de columnas
         date_col = find_column(df, ["fecha", "date", "día"])
         revenue_col = find_column(df, ["ingresos", "ventas", "facturado", "importe", "revenue"])
         cost_col = find_column(df, ["coste", "gasto", "costo", "cost"])
         product_col = find_column(df, ["producto", "product", "item", "concepto", "descripcion", "descripción"])
         units_col = find_column(df, ["unidades", "cantidad", "qty", "units"])
 
-        # convertir tipos
         if revenue_col:
             df[revenue_col] = clean_numeric(df[revenue_col])
         if cost_col:
@@ -181,7 +174,6 @@ if archivo:
             df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
             df = df.dropna(subset=[date_col])
 
-        # filtros interactivos
         st.markdown("---")
         st.markdown("### 🔎 Filtros")
         filtro_prod = None
@@ -199,9 +191,6 @@ if archivo:
             if inicio and fin:
                 df = df[(df[date_col].dt.date >= inicio) & (df[date_col].dt.date <= fin)]
 
-        # ==============================
-        # TABS: Resumen / Gráficos / Informe IA
-        # ==============================
         tab1, tab2, tab3 = st.tabs(["📈 Resumen", "📊 Gráficos", "🤖 Informe IA"])
 
         # --- TAB 1: RESUMEN ---
@@ -210,18 +199,26 @@ if archivo:
             st.subheader("📄 Vista previa de los datos (limpios)")
             st.dataframe(df.head(50), use_container_width=True)
 
-            # KPI avanzados
             ingresos = df[revenue_col].sum() if revenue_col and revenue_col in df.columns else 0
             coste = df[cost_col].sum() if cost_col and cost_col in df.columns else 0
             beneficio = ingresos - coste
             margen = (beneficio / ingresos * 100) if ingresos else 0
             unidades = int(df[units_col].sum()) if units_col and units_col in df.columns else 0
 
+            # Calcular crecimiento antes de usarlo
+            crecimiento = "N/A"
+            if date_col and revenue_col and len(df) > 1:
+                df_sorted = df.sort_values(date_col)
+                first = df_sorted[revenue_col].iloc[0]
+                last = df_sorted[revenue_col].iloc[-1]
+                if first and first != 0:
+                    crecimiento = f"{((last - first) / first * 100):.2f}%"
+
             st.markdown("### 💡 Insights destacados")
 
             if ingresos > 0:
                 if margen > 30:
-                  st.success("Excelente margen operativo. La rentabilidad global es sólida.")
+                    st.success("Excelente margen operativo. La rentabilidad global es sólida.")
                 elif margen > 10:
                     st.info("Margen correcto, aunque podría optimizarse revisando costes.")
                 else:
@@ -230,7 +227,6 @@ if archivo:
             if crecimiento != "N/A" and crecimiento != "0.00%":
                 st.markdown(f"📈 **Crecimiento acumulado:** {crecimiento}")
 
-            # indicadores adicionales
             media_ingresos = df[revenue_col].mean() if revenue_col else 0
             producto_top = None
             if product_col and revenue_col:
@@ -250,16 +246,6 @@ if archivo:
             c1, c2, c3 = st.columns(3)
             c1.markdown(f"**Ingreso medio:** {format_value(media_ingresos, True)}")
             c2.markdown(f"**Producto más rentable:** {producto_top}")
-            # Crecimiento periodo (si hay fechas)
-            crecimiento = "N/A"
-            if date_col and revenue_col and len(df) > 1:
-                df_sorted = df.sort_values(date_col)
-                first = df_sorted[revenue_col].iloc[0]
-                last = df_sorted[revenue_col].iloc[-1]
-                if first and first != 0:
-                    crecimiento = f"{((last - first) / first * 100):.2f}%"
-                else:
-                    crecimiento = "N/A"
             c3.markdown(f"**Crecimiento (inicio→fin):** {crecimiento}")
 
             st.markdown("</div>", unsafe_allow_html=True)
@@ -268,7 +254,6 @@ if archivo:
         with tab2:
             st.subheader("📊 Gráficos interactivos")
 
-            # Ingresos vs Costes (si existen ambas columnas)
             if date_col and revenue_col and cost_col and revenue_col in df.columns and cost_col in df.columns:
                 st.markdown("**Evolución: Ingresos vs Costes**")
                 comp = df[[date_col, revenue_col, cost_col]].dropna()
@@ -277,7 +262,6 @@ if archivo:
                               labels={date_col: "Fecha", "value": "€", "variable": "Concepto"})
                 st.plotly_chart(fig, use_container_width=True)
 
-            # Top productos por ingresos
             if product_col and revenue_col:
                 st.markdown(f"**Top {top_n_productos} productos por ingresos**")
                 top_prod = df.groupby(product_col)[revenue_col].sum().sort_values(ascending=False).head(top_n_productos)
@@ -285,7 +269,6 @@ if archivo:
                               labels={revenue_col: "Ingresos", product_col: "Producto"})
                 st.plotly_chart(fig2, use_container_width=True)
 
-            # Evolución de ingresos (resample dinámico)
             if date_col and revenue_col:
                 st.markdown("**Evolución de ingresos (resample dinámico)**")
                 time_range = df[date_col].max() - df[date_col].min()
@@ -298,7 +281,6 @@ if archivo:
                 temp = df.set_index(date_col)[revenue_col].resample(rule).sum().fillna(0)
                 st.line_chart(temp)
 
-            # Anomalías
             if revenue_col:
                 datos = df[revenue_col].dropna()
                 if len(datos) > 2:
@@ -350,7 +332,6 @@ if archivo:
                         st.success("✅ Informe generado")
                         st.markdown(analysis)
 
-                        # Botón descarga
                         st.download_button(
                             "📥 Descargar informe (TXT)",
                             data=analysis.encode("utf-8"),
@@ -363,7 +344,6 @@ if archivo:
             else:
                 st.info("No hay clave de OpenAI configurada. Añádela en las Secrets (OPENAI_API_KEY).")
 
-        # FOOTER
         st.markdown(
             """
             <hr style="margin-top:30px; opacity:0.2;">
