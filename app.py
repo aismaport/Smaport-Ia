@@ -43,15 +43,12 @@ st.markdown(
 )
 
 # Cabecera
-st.markdown(
-    """
-    <div style="text-align:center;">
-        <h1>📊 Smaport IA</h1>
-        <h3>Analista de negocio inteligente — Informe automático y dashboards</h3>
-        <p class="small-muted">Diseñado para equipos que necesitan insights rápidos y accionables</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
+st.markdown("""
+<header style="text-align:center; margin-bottom:1.5rem;">
+  <h1 style="color:#1a2b49;">📊 Smaport IA</h1>
+  <h3 style="color:#6b6f76; font-weight:400;">Análisis automático de negocio con IA</h3>
+</header>
+""", unsafe_allow_html=True)
 )
 
 # ==============================
