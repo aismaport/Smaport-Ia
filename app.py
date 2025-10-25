@@ -80,10 +80,13 @@ footer { visibility: hidden; }
 # CABECERA
 # ==============================
 st.markdown("""
-<header style="text-align:center; margin-bottom:1.5rem;">
-  <h1 style="color:#1a2b49;">📊 Smaport IA</h1>
-  <h3 style="color:#6b6f76; font-weight:400;">Análisis automático de negocio con IA</h3>
-</header>
+<div style="text-align:center; padding:40px 0;">
+  <h1>📊 Smaport IA Premium</h1>
+  <h3>Tu asistente de negocio inteligente con dashboard visual</h3>
+  <p style="color:#5b6470; font-size:16px; max-width:600px; margin:auto;">
+    Analiza tus datos de ventas, inventario y gastos, y genera informes automáticos con IA y visualizaciones interactivas.
+  </p>
+</div>
 """, unsafe_allow_html=True)
 
 # ==============================
