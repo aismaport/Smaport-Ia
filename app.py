@@ -300,12 +300,12 @@ if archivo:
 
             comp = df[[date_col, revenue_col, cost_col]].dropna(subset=[date_col, revenue_col, cost_col])
         if comp.empty:
-        st.warning("No hay suficientes datos completos para generar el gráfico Ingresos vs Costes.")
+            st.warning("No hay suficientes datos completos para generar el gráfico Ingresos vs Costes.")
         else:
-        # ordenar por fecha
-        comp = comp.sort_values(by=date_col)
+            # ordenar por fecha
+            comp = comp.sort_values(by=date_col)
 
-        # resample mensual (si hay suficientes fechas)
+            # resample mensual (si hay suficientes fechas)
         try:
             comp = comp.set_index(date_col).resample("M").sum().reset_index()
         except Exception:
