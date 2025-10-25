@@ -342,7 +342,7 @@ if archivo:
             )
             fig.update_layout(hovermode="x unified", legend=dict(title="Concepto"))
             st.plotly_chart(fig, use_container_width=True)
-        else:
+            else:
             # Mensaje cuando faltan columnas
             st.info("Para mostrar Ingresos vs Costes necesitas columnas de fecha, ingresos y costes en el dataset.")
             if product_col and revenue_col:
