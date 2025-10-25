@@ -298,10 +298,10 @@ if archivo:
                 comp_long = comp.melt(id_vars=date_col, value_vars=[revenue_col, cost_col],
                           var_name="Concepto", value_name="€")
     
-    fig = px.line(comp_long, x=date_col, y="€", color="Concepto",
+        fig = px.line(comp_long, x=date_col, y="€", color="Concepto",
                   labels={date_col: "Fecha", "€": "€", "Concepto": "Concepto"},
                   title="Evolución: Ingresos vs Costes")
-    st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
 
             if product_col and revenue_col:
                 top_prod = df.groupby(product_col)[revenue_col].sum().sort_values(ascending=False).head(top_n_productos)
