@@ -125,6 +125,21 @@ with st.expander("ℹ️ Acerca de Smaport IA"):
     """)
 
 # ==============================
+# PORTADA / INTRO
+# ==============================
+st.markdown("""
+<div style="text-align:center; padding:30px 0;">
+  <h1 style="color:#1a2b49;">🚀 Bienvenido a <span style="color:#0078ff;">Smaport IA</span></h1>
+  <p style="font-size:16px; color:#5b6470; max-width:600px; margin:auto;">
+  Tu analista de negocio inteligente. Convierte tus datos de ventas, inventario o gastos en <strong>informes automáticos con IA</strong>.
+  </p>
+  <div style="margin-top:25px;">
+    <span style="font-size:18px;">⬇️ Empieza subiendo tus datos o prueba un ejemplo</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ==============================
 # UPLOAD
 # ==============================
 st.markdown("---")
