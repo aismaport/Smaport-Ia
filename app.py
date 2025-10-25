@@ -293,9 +293,15 @@ if archivo:
             if date_col and revenue_col and cost_col:
                 comp = df[[date_col, revenue_col, cost_col]].dropna()
                 comp = comp.set_index(date_col).resample("M").sum().reset_index()
-                fig = px.line(comp, x=date_col, y=[revenue_col, cost_col],
-                              labels={date_col: "Fecha", "value": "€", "variable": "Concepto"})
-                st.plotly_chart(fig, use_container_width=True)
+    
+                # Convertimos a formato long para que px.line funcione correctamente
+                comp_long = comp.melt(id_vars=date_col, value_vars=[revenue_col, cost_col],
+                          var_name="Concepto", value_name="€")
+    
+    fig = px.line(comp_long, x=date_col, y="€", color="Concepto",
+                  labels={date_col: "Fecha", "€": "€", "Concepto": "Concepto"},
+                  title="Evolución: Ingresos vs Costes")
+    st.plotly_chart(fig, use_container_width=True)
 
             if product_col and revenue_col:
                 top_prod = df.groupby(product_col)[revenue_col].sum().sort_values(ascending=False).head(top_n_productos)
