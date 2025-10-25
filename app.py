@@ -54,13 +54,15 @@ st.markdown("""
 # ==============================
 # SIDEBAR - Configuración
 # ==============================
-st.sidebar.header("Configuración")
-MODEL_NAME = "gpt-5"
 
-st.sidebar.markdown("### Opciones de visualización")
-top_n_productos = st.sidebar.slider("Top N productos", 3, 20, 5)
+st.sidebar.header("⚙️ Panel de configuración")
+MODEL_NAME = "gpt-5
+st.sidebar.markdown("Ajusta tus preferencias de análisis:")
+
+top_n_productos = st.sidebar.slider("🔝 Mostrar top productos", 3, 20, 5)
 std_multiplier = st.sidebar.slider(
-    "Umbral de anomalías (σ)", 1.5, 4.0, 2.0, 0.1, help="Número de desviaciones estándar para marcar anomalías"
+    "📉 Sensibilidad de detección de anomalías", 1.5, 4.0, 2.0, 0.1,
+    help="Controla qué tan estricta es la detección de valores anómalos."
 )
 
 st.sidebar.markdown("---")
