@@ -49,7 +49,7 @@ st.markdown("""
   <h3 style="color:#6b6f76; font-weight:400;">Análisis automático de negocio con IA</h3>
 </header>
 """, unsafe_allow_html=True)
-)
+
 
 # ==============================
 # SIDEBAR - Configuración
