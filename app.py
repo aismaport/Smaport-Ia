@@ -18,6 +18,15 @@ st.set_page_config(
 )
 
 # Tema / CSS neutral y elegante
+st.markdown("""
+<style>
+:root {
+  --primary-color: #0078ff;
+}
+h1, h2, h3, h4 { color: var(--primary-color); }
+a { color: var(--primary-color); text-decoration:none; }
+</style>
+""", unsafe_allow_html=True)
 st.markdown(
     """
     <style>
@@ -57,12 +66,14 @@ st.markdown("""
 
 st.sidebar.header("⚙️ Panel de configuración")
 MODEL_NAME = "gpt-5"
+
 st.sidebar.markdown("Ajusta tus preferencias de análisis:")
 
 top_n_productos = st.sidebar.slider("🔝 Mostrar top productos", 3, 20, 5)
 std_multiplier = st.sidebar.slider(
-    "📉 Sensibilidad de detección de anomalías", 1.5, 4.0, 2.0, 0.1,
-    help="Controla qué tan estricta es la detección de valores anómalos."
+    "📉 Sensibilidad de detección de anomalías",
+    1.5, 4.0, 2.0, 0.1,
+    help="Controla qué tan estricta es la detección de valores atípicos."
 )
 
 st.sidebar.markdown("---")
@@ -358,16 +369,13 @@ if archivo:
             else:
                 st.info("No hay clave de OpenAI configurada. Añádela en las Secrets (OPENAI_API_KEY).")
 
-        st.markdown(
-            """
-            <hr style="margin-top:30px; opacity:0.2;">
-            <div style="text-align:center; color:#7a8088; font-size:13px;">
-            Desarrollado por <strong>Smaport IA</strong> · 2025
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
+        st.markdown("""
+        <hr style="margin-top:40px; opacity:0.2;">
+        <div style="text-align:center; color:#7a8088; font-size:13px;">
+          Desarrollado por <strong>Smaport IA</strong> — IA aplicada al análisis empresarial
+        </div>
+        """, unsafe_allow_html=True)
+        
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {e}")
 
