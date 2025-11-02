@@ -1,10 +1,11 @@
 import streamlit as st
 import requests
+from openai import OpenAI
 import os
 import pandas as pd
 import textwrap
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="Smaport IA SaaS", page_icon="📊", layout="wide")
