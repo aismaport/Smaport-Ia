@@ -11,3 +11,4 @@ openai
 fastapi-utils
 python-multipart
 openpyxl
+psycopg2-binary
