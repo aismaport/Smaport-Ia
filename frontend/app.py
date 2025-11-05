@@ -7,6 +7,8 @@ import textwrap
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+BACKEND_URL = "https://smaport-ia-production.up.railway.app"
+
 
 st.set_page_config(page_title="Smaport IA SaaS", page_icon="📊", layout="wide")
 st.title("📊 Smaport IA — Portal")
