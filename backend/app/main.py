@@ -12,6 +12,7 @@ from .auth import get_password_hash, verify_password, create_access_token, decod
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 from typing import Dict
+import hashlib
 
 # ======================================================
 # 🔧 CONFIGURACIÓN DE LA BASE DE DATOS (Railway / Render)
