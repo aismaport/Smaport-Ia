@@ -7,12 +7,14 @@ from sqlalchemy.orm import sessionmaker
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from . import models, schemas, auth
-from .database import SessionLocal, engine, Base
+from .database import Base
+from .database import SessionLocal, engine
 from .auth import get_password_hash, verify_password, create_access_token, decode_token
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 from typing import Dict
 import hashlib
+from .models import User
 
 # ======================================================
 # 🔧 CONFIGURACIÓN DE LA BASE DE DATOS (Railway / Render)
@@ -21,7 +23,6 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")  # fallback loca
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
-Base = declarative_base()
 
 # ======================================================
 # 🚀 INICIALIZACIÓN DE LA APLICACIÓN
@@ -31,11 +32,6 @@ app = FastAPI(title="Smaport IA Backend", version="1.0.0")
 # ======================================================
 # 🧱 MODELOS DE BASE DE DATOS
 # ======================================================
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    password = Column(String, nullable=False)
 
 # Crear tablas si no existen
 Base.metadata.create_all(bind=engine)
@@ -66,7 +62,7 @@ def register_user(req: RegisterRequest):
     hashed_password = hashlib.sha256(req.password.encode()).hexdigest()
 
     # Crear y guardar el usuario
-    new_user = User(email=req.email, password=hashed_password)
+    new_user = User(email=req.email, hashed_password=hashed_password)
     db.add(new_user)
     db.commit()
 
@@ -86,7 +82,7 @@ def login_user(req: LoginRequest):
 
     # Verificar contraseña
     hashed_password = hashlib.sha256(req.password.encode()).hexdigest()
-    if user.password != hashed_password:
+    if user.hashed_password != hashed_password:
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
 
     return {"message": "Inicio de sesión correcto"}
