@@ -8,7 +8,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=True)
-    plan = Column(String, default="free")  # free / pro
+    plan = Column(String, default="free")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Usage(Base):
@@ -18,3 +18,4 @@ class Usage(Base):
     endpoint = Column(String, nullable=False)
     cost = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
